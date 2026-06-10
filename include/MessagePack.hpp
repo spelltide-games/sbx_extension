@@ -13,10 +13,11 @@ class MessagePack : public Object {
 
 public:
 	static Variant loads(const PackedByteArray &data);
+	static Variant loads_c(const char *data, size_t size);
 	static PackedByteArray dumps(Variant value);
 
 protected:
 	static void _bind_methods();
 };
 
-} // namespace godot
+} // namespace pkpy

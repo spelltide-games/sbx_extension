@@ -26,6 +26,7 @@ file(GLOB_RECURSE SBX_SRC ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp)
 
 add_library(${PROJECT_NAME} STATIC
     ${SBX_SRC}
+    ${CMAKE_CURRENT_LIST_DIR}/kcp/ikcp.c
 )
 
 target_include_directories(${PROJECT_NAME} PUBLIC
