@@ -1,3 +1,5 @@
+#pragma once
+
 #include "godot_cpp/classes/node3d.hpp"
 #include "godot_cpp/templates/hash_map.hpp"
 #include "godot_cpp/templates/hash_set.hpp"
