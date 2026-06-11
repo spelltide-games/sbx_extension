@@ -117,14 +117,6 @@ class LockstepGoClient : public Node {
 
 protected:
 	static void _bind_methods();
-
-public:
-	void _process(double delta) override {
-		if (host.is_empty() || port == 0) {
-			return;
-		}
-		poll();
-	}
 };
 
 } // namespace pkpy

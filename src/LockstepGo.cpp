@@ -35,7 +35,6 @@ LockstepGoClient::LockstepGoClient() {
 
 void LockstepGoClient::poll() {
 	if (host.is_empty() || port == 0) {
-		print_error("lockstep-go: host or port is not set");
 		return;
 	}
 
@@ -43,6 +42,7 @@ void LockstepGoClient::poll() {
 		case 0: {
 			// connect_ws
 			String ws_url = "ws://" + host + ":" + String::num_int64(port);
+			ws_peer->set_heartbeat_interval(20.0);
 			Error err = ws_peer->connect_to_url(ws_url);
 			if (err == OK) {
 				poll_stage++;
@@ -124,6 +124,7 @@ void LockstepGoClient::poll() {
 }
 
 void LockstepGoClient::poll_kcp() {
+	// print_line(Time::get_singleton()->get_ticks_msec());
 	// update
 	ikcp_update(ikcp, Time::get_singleton()->get_ticks_msec());
 	// input
@@ -157,8 +158,8 @@ void LockstepGoClient::poll_kcp() {
 			}
 			case OpCodeKCP::OpClientFrame: {
 				Array arr = arg;
-				// [frame_id, inputs]
-				call("_on_client_frame", arr[0], arr[1]);
+				// [frame_id, inputs, ...]
+				callv("_on_client_frame", arr);
 				break;
 			}
 		}
@@ -244,6 +245,7 @@ void LockstepGoClient::send_kcp(OpCodeKCP cmd, Variant arg) {
 void LockstepGoClient::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("connect_ws", "host", "port"), &LockstepGoClient::connect_ws);
 	ClassDB::bind_method(D_METHOD("connect_room", "room"), &LockstepGoClient::connect_room);
+	ClassDB::bind_method(D_METHOD("poll"), &LockstepGoClient::poll);
 
 	ClassDB::bind_method(D_METHOD("rpc_call", "dst_id", "method", "arg"), &LockstepGoClient::rpc_call);
 	ClassDB::bind_method(D_METHOD("send_input", "arg"), &LockstepGoClient::send_input);
