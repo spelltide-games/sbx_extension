@@ -73,9 +73,8 @@ class LockstepGoClient : public Node {
 		send_kcp(OpCodeKCP::OpServerInput, arg);
 	}
 
-	Signal create_room(String name, String version, int max_players, int frame_rate) {
+	Signal create_room(String version, int max_players, int frame_rate) {
 		Dictionary arg;
-		arg["name"] = name;
 		arg["version"] = version;
 		arg["max_players"] = max_players;
 		arg["frame_rate"] = frame_rate;

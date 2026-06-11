@@ -23,8 +23,8 @@ LockstepGoClient::LockstepGoClient() {
 		return {};
 	};
 
-	methods["update_room"] = [](LockstepGoClient *client, Variant arg) -> Variant {
-		client->room = arg;
+	methods["room_event"] = [](LockstepGoClient *client, Variant arg) -> Variant {
+		print_line("Received room event: " + String(arg));
 		return {};
 	};
 
@@ -249,7 +249,7 @@ void LockstepGoClient::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("rpc_call", "dst_id", "method", "arg"), &LockstepGoClient::rpc_call);
 	ClassDB::bind_method(D_METHOD("send_input", "arg"), &LockstepGoClient::send_input);
-	ClassDB::bind_method(D_METHOD("create_room", "name", "version", "max_players", "frame_rate"), &LockstepGoClient::create_room);
+	ClassDB::bind_method(D_METHOD("create_room", "version", "max_players", "frame_rate"), &LockstepGoClient::create_room);
 	ClassDB::bind_method(D_METHOD("join_room", "port", "version", "pre_join"), &LockstepGoClient::join_room);
 	ClassDB::bind_method(D_METHOD("leave_room"), &LockstepGoClient::leave_room);
 	ClassDB::bind_method(D_METHOD("request_game_state"), &LockstepGoClient::request_game_state);
