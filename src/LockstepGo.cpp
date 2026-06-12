@@ -1,6 +1,7 @@
 #include "LockstepGo.hpp"
 #include "MessagePack.hpp"
 #include "godot_cpp/classes/time.hpp"
+#include "godot_cpp/core/print_string.hpp"
 #include "godot_cpp/core/property_info.hpp"
 
 namespace pkpy {
@@ -15,27 +16,12 @@ LockstepGoClient::LockstepGoClient() {
 
 	this->host = "";
 	this->port = 0;
-
-	methods["set_id"] = [](LockstepGoClient *client, Variant arg) -> Variant {
-		if (client->id.is_empty()) {
-			client->id = arg;
-		}
-		return {};
-	};
-
-	methods["room_event"] = [](LockstepGoClient *client, Variant arg) -> Variant {
-		print_line("Received room event: " + String(arg));
-		return {};
-	};
-
-	methods["request_game_state"] = [](LockstepGoClient *client, Variant arg) -> Variant {
-		return client->call("_export_game_state");
-	};
+	this->udp_redundancy = 1;
 }
 
-void LockstepGoClient::poll() {
+Variant LockstepGoClient::poll(double delta) {
 	if (host.is_empty() || port == 0) {
-		return;
+		return {};
 	}
 
 	switch (poll_stage) {
@@ -72,7 +58,7 @@ void LockstepGoClient::poll() {
 					}
 				}
 				if (conv == 0) {
-					print_error("lockstep-go: conv not found");
+					print_error("lockstep_go: conv not found");
 					poll_stage = -1;
 					break;
 				}
@@ -85,7 +71,9 @@ void LockstepGoClient::poll() {
 						PackedByteArray data;
 						data.resize(len);
 						std::memcpy(data.ptrw(), buf, len);
-						client->udp_peer->put_packet(data);
+						for (int i = 0; i < client->udp_redundancy; i++) {
+							client->udp_peer->put_packet(data);
+						}
 						return len;
 					};
 					ikcp_nodelay(ikcp, 1, 20, 2, 1);
@@ -119,11 +107,12 @@ void LockstepGoClient::poll() {
 	poll_ws();
 
 	if (ikcp) {
-		poll_kcp();
+		return poll_kcp();
 	}
+	return {};
 }
 
-void LockstepGoClient::poll_kcp() {
+Variant LockstepGoClient::poll_kcp() {
 	// print_line(Time::get_singleton()->get_ticks_msec());
 	// update
 	ikcp_update(ikcp, Time::get_singleton()->get_ticks_msec());
@@ -139,8 +128,8 @@ void LockstepGoClient::poll_kcp() {
 		// parse
 		Array cpnts = MessagePack::loads_c(recv_buf, recv_len);
 		if (cpnts.size() != 2) {
-			print_error("lockstep-go: invalid kcp message");
-			return;
+			print_error("lockstep_go: invalid kcp message");
+			return {};
 		}
 		int cmd = cpnts[0];
 		Variant arg = cpnts[1];
@@ -148,22 +137,17 @@ void LockstepGoClient::poll_kcp() {
 		switch ((OpCodeKCP)cmd) {
 			case OpCodeKCP::OpPing: {
 				send_kcp(OpCodeKCP::OpPong, arg);
-				break;
-			}
-			case OpCodeKCP::OpPong: {
-				break;
-			}
-			case OpCodeKCP::OpServerInput: {
-				break;
+				return {};
 			}
 			case OpCodeKCP::OpClientFrame: {
-				Array arr = arg;
-				// [frame_id, inputs, ...]
-				callv("_on_client_frame", arr);
-				break;
+				return arg;
+			}
+			default: {
+				return {};
 			}
 		}
 	}
+	return {};
 }
 
 void LockstepGoClient::poll_ws() {
@@ -178,7 +162,7 @@ void LockstepGoClient::poll_ws() {
 				Array arr = MessagePack::loads(packet);
 
 				if (arr.size() != 4) {
-					print_error("lockstep-go: invalid ws message");
+					print_error("lockstep_go: invalid ws message");
 					continue;
 				}
 
@@ -194,18 +178,24 @@ void LockstepGoClient::poll_ws() {
 
 				if (method == "_") {
 					if (is_rpc_pending) {
-						emit_signal("rpc_done", arg);
 						is_rpc_pending = false;
+						emit_signal("rpc_done", arg);
 					} else {
-						print_error("lockstep-go: received response but no pending call");
+						print_error("lockstep_go: received response but no pending call");
 					}
-				} else if (methods.has(method)) {
-					Variant retval = methods[method](this, arg);
+				} else {
+					Variant retval;
+					if (has_method(method)) {
+						retval = call(method, arg);
+					} else {
+						print_error("lockstep_go: no such method: " + method);
+						break;
+					}
 					if (!no_reply) {
 						PackedByteArray resp = MessagePack::dumps(Array::make(id, src_id, "_", retval));
 						Error err = ws_peer->send(resp);
 						if (err != OK) {
-							print_error("lockstep-go: ws_peer.send() failed");
+							print_error("lockstep_go: ws_peer.send() failed");
 						}
 					}
 				}
@@ -220,17 +210,17 @@ void LockstepGoClient::poll_ws() {
 
 Signal LockstepGoClient::rpc_call(String dst_id, String method, Variant arg) {
 	if (id.is_empty()) {
-		print_error("lockstep-go: client_id is not set");
+		print_error("lockstep_go: client_id is not set");
 		return Signal(this, "unreachable");
 	}
 	if (is_rpc_pending) {
-		print_error("lockstep-go: previous call is still pending");
+		print_error("lockstep_go: previous call is still pending");
 		return Signal(this, "unreachable");
 	}
 	PackedByteArray data = MessagePack::dumps(Array::make(id, dst_id, method, arg));
 	Error err = ws_peer->send(data);
 	if (err != OK) {
-		print_error("lockstep-go: ws_peer.send() failed");
+		print_error("lockstep_go: ws_peer.send() failed");
 		return Signal(this, "unreachable");
 	}
 	is_rpc_pending = true;
@@ -244,27 +234,29 @@ void LockstepGoClient::send_kcp(OpCodeKCP cmd, Variant arg) {
 
 void LockstepGoClient::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("connect_ws", "host", "port"), &LockstepGoClient::connect_ws);
-	ClassDB::bind_method(D_METHOD("connect_room", "room"), &LockstepGoClient::connect_room);
-	ClassDB::bind_method(D_METHOD("poll"), &LockstepGoClient::poll);
+	ClassDB::bind_method(D_METHOD("connect_room", "room", "udp_redundancy"), &LockstepGoClient::connect_room);
+	ClassDB::bind_method(D_METHOD("poll", "delta"), &LockstepGoClient::poll);
 
 	ClassDB::bind_method(D_METHOD("rpc_call", "dst_id", "method", "arg"), &LockstepGoClient::rpc_call);
 	ClassDB::bind_method(D_METHOD("send_input", "arg"), &LockstepGoClient::send_input);
+	ClassDB::bind_method(D_METHOD("set_player_id", "id"), &LockstepGoClient::set_player_id);
+
 	ClassDB::bind_method(D_METHOD("create_room", "version", "max_players", "frame_rate"), &LockstepGoClient::create_room);
 	ClassDB::bind_method(D_METHOD("join_room", "port", "version", "pre_join"), &LockstepGoClient::join_room);
 	ClassDB::bind_method(D_METHOD("leave_room"), &LockstepGoClient::leave_room);
-	ClassDB::bind_method(D_METHOD("request_game_state"), &LockstepGoClient::request_game_state);
-	// virtual methods
+	ClassDB::bind_method(D_METHOD("export_game_state", "id", "arg"), &LockstepGoClient::export_game_state);
 	MethodInfo export_game_state_mi;
 	export_game_state_mi.return_val = PropertyInfo(Variant::NIL, "", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT);
+	export_game_state_mi.arguments.push_back(PropertyInfo(Variant::NIL, "", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_NIL_IS_VARIANT));
+	export_game_state_mi.arguments_metadata.push_back({});
 	export_game_state_mi.name = "_export_game_state";
-	ClassDB::add_virtual_method(get_class_static(), export_game_state_mi);
-	MethodInfo on_client_frame_mi;
-	on_client_frame_mi.name = "_on_client_frame";
-	on_client_frame_mi.arguments.push_back(PropertyInfo(Variant::INT, "frame_id"));
-	on_client_frame_mi.arguments.push_back(PropertyInfo(Variant::DICTIONARY, "inputs"));
-	on_client_frame_mi.arguments_metadata.push_back({});
-	on_client_frame_mi.arguments_metadata.push_back({});
-	ClassDB::add_virtual_method(get_class_static(), on_client_frame_mi, { "frame_id", "inputs" });
+	ClassDB::add_virtual_method(get_class_static(), export_game_state_mi, { "arg" });
+	MethodInfo on_room_event_mi;
+	on_room_event_mi.return_val = PropertyInfo(Variant::NIL, "");
+	on_room_event_mi.arguments.push_back(PropertyInfo(Variant::DICTIONARY, "event"));
+	on_room_event_mi.arguments_metadata.push_back({});
+	on_room_event_mi.name = "_on_room_event";
+	ClassDB::add_virtual_method(get_class_static(), on_room_event_mi, { "event" });
 	// properties
 	ClassDB::bind_method(D_METHOD("_get_id"), &LockstepGoClient::get_id);
 	ClassDB::bind_method(D_METHOD("_get_room"), &LockstepGoClient::get_room);
