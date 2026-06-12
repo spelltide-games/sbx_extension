@@ -72,7 +72,10 @@ Variant LockstepGoClient::poll(double delta) {
 						data.resize(len);
 						std::memcpy(data.ptrw(), buf, len);
 						for (int i = 0; i < client->udp_redundancy; i++) {
-							client->udp_peer->put_packet(data);
+							Error err = client->udp_peer->put_packet(data);
+							if (err != OK) {
+								print_error("lockstep_go: udp_peer.put_packet() failed: " + String::num_int64(err));
+							}
 						}
 						return len;
 					};
@@ -139,10 +142,14 @@ Variant LockstepGoClient::poll_kcp() {
 				send_kcp(OpCodeKCP::OpPong, arg);
 				return {};
 			}
+			case OpCodeKCP::OpPong: {
+				return {};
+			}
 			case OpCodeKCP::OpClientFrame: {
 				return arg;
 			}
 			default: {
+				print_error("lockstep_go: unknown kcp cmd: " + String::num_int64(cmd));
 				return {};
 			}
 		}
@@ -228,8 +235,12 @@ Signal LockstepGoClient::rpc_call(String dst_id, String method, Variant arg) {
 }
 
 void LockstepGoClient::send_kcp(OpCodeKCP cmd, Variant arg) {
+	// print_line("lockstep_go: send_kcp cmd=" + String::num_int64((int)cmd) + ", arg=" + String(arg));
 	PackedByteArray data = MessagePack::dumps(Array::make((int)cmd, arg));
-	ikcp_send(ikcp, (const char *)data.ptr(), data.size());
+	int n = ikcp_send(ikcp, (const char *)data.ptr(), data.size());
+	if (n < 0) {
+		print_error("lockstep_go: ikcp_send() failed: " + String::num_int64(n));
+	}
 }
 
 void LockstepGoClient::_bind_methods() {

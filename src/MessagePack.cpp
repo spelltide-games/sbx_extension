@@ -92,6 +92,11 @@ static bool gd_to_mpack(Variant object, mpack_writer_t *writer) {
 			mpack_write_str(writer, arr.ptr(), arr.length());
 			break;
 		}
+		case Variant::STRING_NAME: {
+			CharString arr = ((String)(StringName)object).utf8();
+			mpack_write_str(writer, arr.ptr(), arr.length());
+			break;
+		}
 		case Variant::PACKED_BYTE_ARRAY: {
 			PackedByteArray arr = (PackedByteArray)object;
 			mpack_write_bin(writer, (const char *)arr.ptr(), arr.size());
@@ -102,6 +107,7 @@ static bool gd_to_mpack(Variant object, mpack_writer_t *writer) {
 			mpack_build_array(writer);
 			for (int i = 0; i < arr.size(); i++) {
 				if (!gd_to_mpack(arr[i], writer)) {
+					print_error(String("gd_to_mpack failed: ") + Variant(arr[i]).stringify());
 					mpack_complete_array(writer);
 					return false;
 				}
@@ -117,10 +123,12 @@ static bool gd_to_mpack(Variant object, mpack_writer_t *writer) {
 				Variant key = keys[i];
 				Variant value = dict[key];
 				if (!gd_to_mpack(key, writer)) {
+					print_error(String("gd_to_mpack failed: ") + Variant(key).stringify());
 					mpack_complete_map(writer);
 					return false;
 				}
 				if (!gd_to_mpack(value, writer)) {
+					print_error(String("gd_to_mpack failed: ") + Variant(value).stringify());
 					mpack_write_nil(writer);
 					mpack_complete_map(writer);
 					return false;
