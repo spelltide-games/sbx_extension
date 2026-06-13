@@ -37,6 +37,7 @@ class LockstepGoClient : public Node {
 	Dictionary room;
 	int poll_stage;
 	bool any_kcp_msg_received;
+	Array frames;
 
 	String host;
 	int port;
@@ -64,11 +65,12 @@ class LockstepGoClient : public Node {
 		return Signal(this, "room_connected");
 	}
 
-	Variant poll(double delta);
-	Variant poll_kcp();
+	void poll(double delta);
+	void poll_kcp();
 	void poll_ws();
 
 	Signal rpc_call(String dst_id, String method, Variant arg);
+	void rpc_return(Variant retval, String dst_id);
 
 	void send_kcp(OpCodeKCP cmd, Variant arg);
 	void send_input(Variant arg) {
@@ -77,14 +79,16 @@ class LockstepGoClient : public Node {
 
 	void set_player_id(String id) {
 		if (!this->id.is_empty()) {
-			print_error("lockstep_go: player_id is already set");
+			print_error("lockstep_cpp: player_id is already set");
 			return;
 		}
 		this->id = id;
 	}
 
-	Signal export_game_state(String id, Variant arg) {
-		return rpc_call(id, "_export_game_state", arg);
+	Signal export_game_state(String id, uint32_t frame_id) {
+		// frame_iddenotes the initial frame for the newly joined player.
+		// Existing players must simulate all inputs preceding this frame prior to invoking _export_game_state.
+		return rpc_call(id, "_export_game_state", frame_id);
 	}
 
 	Signal create_room(String version, int max_players, int frame_rate) {
@@ -105,6 +109,19 @@ class LockstepGoClient : public Node {
 
 	void leave_room() {
 		rpc_call("", "!leave_room", {});
+	}
+
+	int get_available_frame_count() const {
+		return frames.size();
+	}
+
+	Variant get_frame() {
+		if (frames.is_empty()) {
+			print_error("lockstep_cpp: no frame available");
+			return {};
+		} else {
+			return frames.pop_front();
+		}
 	}
 
 	virtual ~LockstepGoClient() {
