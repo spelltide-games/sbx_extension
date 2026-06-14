@@ -31,12 +31,11 @@ class LockstepGoClient : public Node {
 	Ref<PacketPeerUDP> udp_peer;
 	ikcpcb *ikcp;
 
-	bool is_rpc_pending;
-
 	String id;
 	Dictionary room;
 	int poll_stage;
 	bool any_kcp_msg_received;
+	bool is_rpc_pending;
 	Array frames;
 
 	String host;

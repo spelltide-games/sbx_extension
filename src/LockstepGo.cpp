@@ -15,6 +15,7 @@ LockstepGoClient::LockstepGoClient() {
 
 	this->poll_stage = 0;
 	this->any_kcp_msg_received = false;
+	this->is_rpc_pending = false;
 
 	this->host = "";
 	this->port = 0;
@@ -103,6 +104,7 @@ void LockstepGoClient::poll(double delta) {
 				emit_signal("room_connected");
 				poll_stage++;
 			}
+			break;
 		}
 		default: {
 			break;
