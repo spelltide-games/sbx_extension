@@ -29,8 +29,9 @@ struct LockstepGoNetwork {
 	bool ws_opened, ws_closed, kcp_opened;
 	py_Name on_ws_data;
 	py_Name on_kcp_data;
+	py_Ref callbacks;
 
-	LockstepGoNetwork() {
+	LockstepGoNetwork(py_Ref callbacks) {
 		ws_peer.instantiate();
 		udp_peer.instantiate();
 		ikcp = nullptr;
@@ -38,6 +39,7 @@ struct LockstepGoNetwork {
 		ws_opened = ws_closed = kcp_opened = false;
 		on_ws_data = py_name("on_ws_data");
 		on_kcp_data = py_name("on_kcp_data");
+		this->callbacks = callbacks;
 	}
 
 	void dispose() {
@@ -49,10 +51,10 @@ struct LockstepGoNetwork {
 		}
 	}
 
-	bool call_data(py_Ref self, py_Name name, void *p, int size) {
-		py_push(self);
+	bool call_data(py_Name name, void *p, int size) {
+		py_push(callbacks);
 		if (!py_pushmethod(name)) {
-			return AttributeError(self, name);
+			return AttributeError(callbacks, name);
 		}
 		py_Ref tmp = py_pushtmp();
 		void *dst = py_newbytes(tmp, size);
@@ -165,7 +167,7 @@ void setup_lockstepgo_module() {
 				}
 				while (self->ws_peer->get_available_packet_count() > 0) {
 					PackedByteArray packet = self->ws_peer->get_packet();
-					if (!self->call_data(py_arg(0), self->on_ws_data, (void *)packet.ptr(), packet.size())) {
+					if (!self->call_data(self->on_ws_data, (void *)packet.ptr(), packet.size())) {
 						return false;
 					}
 				}
@@ -199,7 +201,7 @@ void setup_lockstepgo_module() {
 						self->kcp_opened = true;
 					}
 					// parse
-					if (!self->call_data(py_arg(0), self->on_kcp_data, (void *)recv_buf, n)) {
+					if (!self->call_data(self->on_kcp_data, (void *)recv_buf, n)) {
 						return false;
 					}
 				} else {
@@ -217,14 +219,16 @@ void setup_lockstepgo_module() {
 
 	py_bindmethod(t, "__new__", [](int argc, py_Ref argv) {
 		// __new__(cls) -> LockstepGoNetwork
-		void *ud = py_newobject(py_retval(), py_totype(py_arg(0)), 0, sizeof(LockstepGoNetwork));
-		new (ud) LockstepGoNetwork();
+		void *ud = py_newobject(py_retval(), py_totype(py_arg(0)), 1, sizeof(LockstepGoNetwork));
+		new (ud) LockstepGoNetwork(py_getslot(py_retval(), 0));
 		return true;
 	});
 
 	py_bindmethod(t, "__init__", [](int argc, py_Ref argv) {
-		// __init__(self) -> LockstepGoNetwork
-		PY_CHECK_ARGC(1);
+		// __init__(self, callbacks) -> LockstepGoNetwork
+		PY_CHECK_ARGC(2);
+		LockstepGoNetwork *self = (LockstepGoNetwork *)py_touserdata(py_arg(0));
+		py_assign(self->callbacks, py_arg(1));
 		py_newnone(py_retval());
 		return true;
 	});
