@@ -214,6 +214,7 @@ void setup_lockstepgo_module() {
 				}
 			}
 		}
+		py_newnone(py_retval());
 		return true;
 	});
 
