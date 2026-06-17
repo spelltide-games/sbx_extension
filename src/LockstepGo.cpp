@@ -255,7 +255,7 @@ void LockstepGoClient::rpc_return(Variant retval, String dst_id) {
 	PackedByteArray resp = MessagePack::dumps(Array::make(id, dst_id, "_", retval));
 	Error err = ws_peer->send(resp);
 	if (err != OK) {
-		print_error("lockstep_go: ws_peer.send() failed");
+		print_error("lockstep_cpp: ws_peer.send() failed");
 	}
 }
 

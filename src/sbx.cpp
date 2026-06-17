@@ -1,6 +1,7 @@
 #include "CubePhysics.hpp"
 #include "LevelDB.hpp"
 #include "LockstepGo.hpp"
+#include "LockstepGoNetwork.hpp"
 #include "MessagePack.hpp"
 #include <godot_cpp/core/defs.hpp>
 
@@ -17,6 +18,7 @@ void setup_sbx_godot_classes() {
 
 void setup_sbx_python_modules() {
 	setup_leveldb_module();
+	setup_lockstepgo_module();
 }
 
 } // namespace pkpy
