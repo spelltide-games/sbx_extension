@@ -1,6 +1,5 @@
 #include "CubePhysics.hpp"
 #include "LevelDB.hpp"
-#include "LockstepGo.hpp"
 #include "LockstepGoNetwork.hpp"
 #include "MessagePack.hpp"
 #include <godot_cpp/core/defs.hpp>
