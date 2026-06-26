@@ -6,7 +6,7 @@
 #include "MessagePack.hpp"
 #include "mpack.h"
 
-namespace pkpy {
+namespace sbx {
 
 static Variant mpack_to_gd(mpack_node_t node) {
 	mpack_type_t type = mpack_node_type(node);
@@ -193,4 +193,4 @@ void MessagePack::_bind_methods() {
 	ClassDB::bind_static_method("MessagePack", D_METHOD("dumps", "object"), &MessagePack::dumps);
 }
 
-} // namespace pkpy
+} // namespace sbx

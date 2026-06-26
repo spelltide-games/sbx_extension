@@ -1,7 +1,7 @@
 #pragma once
 
-namespace pkpy {
+namespace sbx {
 
 void setup_leveldb_module();
 
-}   // namespace pkpy
+} // namespace sbx

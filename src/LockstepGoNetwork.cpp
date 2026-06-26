@@ -5,7 +5,7 @@
 #include "ikcp.h"
 #include "pocketpy.h"
 
-namespace pkpy {
+namespace sbx {
 
 using namespace godot;
 
@@ -262,4 +262,4 @@ void setup_lockstepgo_module() {
             return true; }, nullptr);
 }
 
-} //namespace pkpy
+} //namespace sbx

@@ -4,7 +4,7 @@
 #include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/variant.hpp>
 
-namespace pkpy {
+namespace sbx {
 
 using namespace godot;
 
@@ -20,4 +20,4 @@ protected:
 	static void _bind_methods();
 };
 
-} // namespace pkpy
+} // namespace sbx

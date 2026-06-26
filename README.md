@@ -4,4 +4,8 @@ This is an extension repository for [godot-pocketpy](https://github.com/spelltid
 
 + leveldb support
 + cube physics
-+ ...
++ torus
++ tilemap
++ multiplayer
+
+
