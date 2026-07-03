@@ -32,10 +32,10 @@ struct LevelDB {
 	}
 };
 
-void setup_leveldb_module() {
-	py_GlobalRef mod = py_newmodule("leveldb");
+void setup_leveldb_module(const char* name) {
+	py_GlobalRef mod = py_newmodule(name);
 
-	py_Type tp_DB = py_newtype("DB", tp_object, mod, [](void *ud) {
+	py_Type tp_DB = py_newtype("LevelDB", tp_object, mod, [](void *ud) {
 		LevelDB *p_db = (LevelDB *)ud;
 		p_db->close();
 	});

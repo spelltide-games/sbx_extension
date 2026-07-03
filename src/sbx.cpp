@@ -6,6 +6,8 @@
 #include "godot_cpp/core/class_db.hpp"
 #include <godot_cpp/core/defs.hpp>
 
+#include "pocketpy.h"
+
 namespace sbx {
 
 using namespace godot;
@@ -15,8 +17,10 @@ void setup_sbx_godot_classes() {
 }
 
 void setup_sbx_python_modules() {
-	setup_leveldb_module();
-	setup_lockstepgo_module();
+	py_newmodule("sbxcpp");
+	setup_leveldb_module("sbxcpp.leveldb");
+	setup_lockstep_module("sbxcpp.lockstep");
+	setup_space_module("sbxcpp.space");
 }
 
 } // namespace sbx

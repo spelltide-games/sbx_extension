@@ -1,5 +1,6 @@
 #pragma once
 
+#include "godot_cpp/variant/vector2.hpp"
 #include "godot_cpp/variant/vector2i.hpp"
 #include "godot_cpp/variant/vector3.hpp"
 #include <cassert>
@@ -13,7 +14,6 @@ const float FLOAT_EPS = 0.001953125f; // 1/512
 const float LINE_IS_POINT_THRESHOLD = 0.015625f; // 1/64
 const float PENETRATION_CORRECTION_PERCENTAGE = 0.2f;
 const float PENETRATION_SLOP = FLOAT_EPS;
-const Vector2i INVALID_CHUNK_POS = Vector2i(INT_MAX, INT_MAX);
 
 using Line = Vector3[2];
 
@@ -49,6 +49,10 @@ static inline bool aabb_intersects(Vector3 vmin, Vector3 vmax, Vector3 other_vmi
 			(other_vmin.z < vmax.z) && (vmin.z < other_vmax.z);
 }
 
+static inline bool torus_aabb_intersects(int width, int height, Vector3 vmin, Vector3 vmax, Vector3 other_vmin, Vector3 other_vmax) {
+	return false;
+}
+
 struct AAFace {
 	UnitVector3 normal;
 	Vector3 vmin;
@@ -69,20 +73,35 @@ struct AABB {
 			vmin(vmin), vmax(vmax) {}
 
 	Vector3 position() const { return (vmin + vmax) * 0.5f; }
+	Vector2 position_xz() const { return Vector2((vmin.x + vmax.x) * 0.5f, (vmin.z + vmax.z) * 0.5f); }
 	Vector3 size() const { return vmax - vmin; }
 
 	bool intersects(const AABB &other) const {
 		return aabb_intersects(vmin, vmax, other.vmin, other.vmax);
 	}
 
+	AABB moved(Vector3 offset) {
+		return AABB(vmin + offset, vmax + offset);
+	}
+
 	AAFace get_face(UnitVector3 normal) const;
-	void move_both_to_origin(AABB *p_other);
 	float find_max_separation(const AABB &other, UnitVector3 *p_reference_normal) const;
+	void torus_normalize_both(int width, int height, AABB* p_other);
 };
 
 struct Cube {
 	AABB core;
 	float radius;
+
+	Cube() :
+			core(), radius(0) {}
+
+	Cube(Vector3 position, Vector3 extent, float radius01) {
+		this->radius = radius01 * extent[extent.min_axis_index()];
+		Vector3 offset = (extent - Vector3(1, 1, 1) * this->radius);
+		this->core.vmin = position - offset;
+		this->core.vmax = position + offset;
+	}
 
 	AABB aabb() const {
 		if (radius == 0)
@@ -94,12 +113,53 @@ struct Cube {
 		core.vmin += delta;
 		core.vmax += delta;
 	}
+};
 
-	void apply(Vector3 position, Vector3 extent, float radius01) {
-		this->radius = radius01 * extent[extent.min_axis_index()];
-		Vector3 offset = (extent - Vector3(1, 1, 1) * this->radius);
-		this->core.vmin = position - offset;
-		this->core.vmax = position + offset;
+static inline int posmod(int x, int m) {
+	assert(m > 0);
+	int r = x % m;
+	return r < 0 ? r + m : r;
+}
+
+struct Chunker {
+	int width;
+	int height;
+	int chunk_size;
+	int n_chunks_x;
+	int n_chunks_y;
+
+	Chunker(int width, int height, int chunk_size) :
+			width(width), height(height), chunk_size(chunk_size) {
+		n_chunks_x = (width + chunk_size - 1) / chunk_size;
+		n_chunks_y = (height + chunk_size - 1) / chunk_size;
+	}
+
+	Vector2i map_2d(float x, float y) const {
+		assert(x >= 0 && x < width);
+		assert(y >= 0 && y < height);
+
+		int cx = static_cast<int>(x) / chunk_size;
+		int cy = static_cast<int>(y) / chunk_size;
+		return Vector2i(cx, cy);
+	}
+
+	int torus_2d_to_1d(Vector2i pos) const {
+		int x = posmod(pos.x, n_chunks_x);
+		int y = posmod(pos.y, n_chunks_y);
+		return y * n_chunks_x + x;
+	}
+
+	int map_1d(float x, float y) const {
+		Vector2i pos = map_2d(x, y);
+		return pos.y * n_chunks_x + pos.x;
+	}
+
+	Vector2i map_2d(Vector2 pos) const {
+		return map_2d(pos.x, pos.y);
+	}
+
+	int map_1d(Vector2 pos) const {
+		return map_1d(pos.x, pos.y);
 	}
 };
 

@@ -6,7 +6,7 @@ namespace sbx {
 double dmath_fmod(double, double);
 double dmath_floor(double);
 
-static inline double posmod(double x, double m) {
+static double posmodf(double x, double m) {
 	double r = dmath_fmod(x, m);
 	return r >= 0 ? r : r + m;
 }
@@ -15,8 +15,8 @@ int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int
 	int n = size / chunk_size;
 	assert(size % chunk_size == 0);
 
-	double d0 = posmod(dmin, size);
-	double d1 = posmod(dmax, size);
+	double d0 = posmodf(dmin, size);
+	double d1 = posmodf(dmax, size);
 
 	int c0 = (int)dmath_floor(d0 / chunk_size);
 	int c1 = (int)dmath_floor(d1 / chunk_size);
@@ -131,7 +131,7 @@ AAFace AABB::get_face(UnitVector3 normal) const {
 	return face;
 }
 
-void AABB::move_both_to_origin(AABB *p_other) {
+void AABB::torus_normalize_both(int width, int height, AABB* p_other) {
 	Vector3 offset = vmin;
 	vmin -= offset;
 	vmax -= offset;

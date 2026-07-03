@@ -9,45 +9,54 @@ namespace sbx {
 
 using TileID = uint16_t;
 
-struct Tilemap {
-	int width;
-	int height;
-	int n_layers;
-	int slice_x, slice_y, slice_w, slice_h;
-	std::shared_ptr<TileID> tiles;
+enum class TileLayer {
+	BASE,
+	FLOOR,
+	SLIME,
+	BLOCK,
+	COUNT,
+};
 
-	Tilemap(int width, int height, int n_layers) :
-			width(width),
-			height(height),
-			n_layers(n_layers),
+union Tile {
+	TileID data[4];
+	struct {
+		TileID base;
+		TileID floor;
+		TileID slime;
+		TileID block;
+	};
+};
+
+struct Tilemap {
+	int full_w;
+	int full_h;
+	int slice_x, slice_y, slice_w, slice_h;
+	std::shared_ptr<Tile> tiles;
+
+	Tilemap(int width, int height) :
+			full_w(width),
+			full_h(height),
 			slice_x(0),
 			slice_y(0),
 			slice_w(width),
 			slice_h(height) {
-		tiles = std::shared_ptr<TileID>(new TileID[width * height * n_layers], std::default_delete<TileID[]>());
-		std::memset(tiles.get(), 0, width * height * n_layers * sizeof(TileID));
+		tiles = std::shared_ptr<Tile>(new Tile[width * height], std::default_delete<Tile[]>());
+		std::memset(tiles.get(), 0, width * height * sizeof(Tile));
 	}
 
-	TileID *addr(int layer, int x, int y) const {
-		if (layer < 0 || layer >= n_layers) {
-			return nullptr;
-		}
-		if (x < 0 || x >= slice_w || y < 0 || y >= slice_h) {
-			return nullptr;
-		}
-		return addr_nocheck(layer, x, y);
-	}
+	int width() const { return slice_w; }
+	int height() const { return slice_h; }
 
-	TileID *addr_nocheck(int layer, int x, int y) const {
-		return tiles.get() + (layer * width * height + ((slice_y + y) * width + (slice_x + x)));
+	Tile *get(int x, int y) const {
+		return tiles.get() + ((slice_y + y) * full_w + (slice_x + x));
 	}
 
 	Tilemap slice_reverted() {
 		Tilemap res = *this;
 		res.slice_x = 0;
 		res.slice_y = 0;
-		res.slice_w = width;
-		res.slice_h = height;
+		res.slice_w = full_w;
+		res.slice_h = full_h;
 		return res;
 	}
 

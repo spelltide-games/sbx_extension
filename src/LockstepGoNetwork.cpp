@@ -67,9 +67,9 @@ struct LockstepGoNetwork {
 	}
 };
 
-void setup_lockstepgo_module() {
-	py_GlobalRef mod = py_newmodule("lockstepgo");
-	py_Type t = py_newtype("LockstepGoNetwork", tp_object, mod, [](void *ud) {
+void setup_lockstep_module(const char* name) {
+	py_GlobalRef mod = py_newmodule(name);
+	py_Type t = py_newtype("Network", tp_object, mod, [](void *ud) {
 		LockstepGoNetwork *self = (LockstepGoNetwork *)ud;
 		self->~LockstepGoNetwork();
 	});

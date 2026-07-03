@@ -2,6 +2,6 @@
 
 namespace sbx {
 
-void setup_leveldb_module();
+void setup_leveldb_module(const char* name);
 
 } // namespace sbx

@@ -2,6 +2,6 @@
 
 namespace sbx {
 
-void setup_lockstepgo_module();
+void setup_lockstep_module(const char* name);
 
 } //namespace sbx
