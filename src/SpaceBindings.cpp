@@ -171,6 +171,29 @@ static void setup_BodyID(py_GlobalRef mod) {
 		return true; }, NULL);
 }
 
+static bool dispatch_collision_event(py_Ref space, const CollisionEvent &ev) {
+	py_Ref callbacks = py_getslot(space, 0);
+	py_push(callbacks);
+	static py_Name on_pair_add = py_name("on_pair_add");
+	static py_Name on_pair_remove = py_name("on_pair_remove");
+	py_Name name = (ev.type == CollisionEvent::Type::ADDED) ? on_pair_add : on_pair_remove;
+	if (!py_pushmethod(name)) {
+		return AttributeError(callbacks, name);
+	}
+	py_newtrivial(py_pushtmp(), get_BodyID_type(), (void*)&ev.a, sizeof(BodyID));
+	py_newtrivial(py_pushtmp(), get_BodyID_type(), (void*)&ev.b, sizeof(BodyID));
+	py_newvec3i(py_pushtmp(), c11_vec3i{ { ev.xzl.x, ev.xzl.y, ev.xzl.z } });
+	if (ev.type == CollisionEvent::Type::ADDED) {
+		py_newvec3(py_pushtmp(), c11_vec3{ { ev.normal.x, ev.normal.y, ev.normal.z } });
+		if (!py_vectorcall(5, 0))
+			return false;
+	} else {
+		if (!py_vectorcall(4, 0))
+			return false;
+	}
+	return true;
+}
+
 static void setup_Space(py_GlobalRef mod) {
 	py_Type t = py_newtype("Space", tp_object, mod, [](void *ud) {
 		Space *self = (Space *)ud;
@@ -178,16 +201,18 @@ static void setup_Space(py_GlobalRef mod) {
 	});
 
 	py_bindmethod(t, "__new__", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(3);
+		PY_CHECK_ARGC(4);
 		py_Type space_t = py_totype(argv);
 		py_Type tilemap_t = py_gettype("sbxcpp", py_name("Tilemap"));
 		if (!py_checkinstance(&argv[1], tilemap_t)) {
 			return false;
 		}
 		PY_CHECK_ARG_TYPE(2, tp_int);
+		py_Ref callbacks = &argv[3];
 		Tilemap *tilemap = (Tilemap *)py_touserdata(&argv[1]);
 		int chunk_size = py_toint(&argv[2]);
-		void *ud = py_newobject(py_retval(), space_t, 0, sizeof(Space));
+		void *ud = py_newobject(py_retval(), space_t, 1, sizeof(Space));
+		py_setslot(py_retval(), 0, callbacks);
 		new (ud) Space(*tilemap, chunk_size);
 		return true;
 	});
@@ -256,17 +281,12 @@ static void setup_Space(py_GlobalRef mod) {
 		py_Type bid_t = get_BodyID_type();
 		if (it) {
 			CollisionPair pair = it->value;
-			py_push(handler);
-			py_newint(py_pushtmp(), (int)CollisionEvent::Type::REMOVED);
-			py_newtrivial(py_pushtmp(), bid_t, &pair.a, sizeof(BodyID));
-			py_newtrivial(py_pushtmp(), bid_t, &pair.b, sizeof(BodyID));
-			py_newvec3i(py_pushtmp(), c11_xzl);
-			py_newnone(py_pushtmp());
-			if (!py_vectorcall(5, 0)) {
-				return false;
-			}
+			CollisionEvent ev(CollisionEvent::Type::REMOVED, pair.a, pair.b, pair.xzl);
 			self->curr_pairs.erase(pair);
 			self->curr_pairs_by_xzl.remove(it);
+			if (!dispatch_collision_event(argv, ev)) {
+				return false;
+			}
 			py_newbool(py_retval(), true);
 		} else {
 			py_newbool(py_retval(), false);
@@ -275,26 +295,15 @@ static void setup_Space(py_GlobalRef mod) {
 	});
 
 	py_bindmethod(t, "step", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(3);
+		PY_CHECK_ARGC(2);
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, tp_float);
-		py_Ref handler = &argv[2];
 		float delta = py_tofloat(&argv[1]);
 		self->step(delta);
 		py_Type bid_t = get_BodyID_type();
 		for (int i = 0; i < self->curr_events.size(); ++i) {
-			CollisionEvent ev = self->curr_events[i];
-			py_push(handler);
-			py_newint(py_pushtmp(), (int)ev.type);
-			py_newtrivial(py_pushtmp(), bid_t, &ev.a, sizeof(BodyID));
-			py_newtrivial(py_pushtmp(), bid_t, &ev.b, sizeof(BodyID));
-			py_newvec3i(py_pushtmp(), c11_vec3i{ { ev.xzl.x, ev.xzl.y, ev.xzl.z } });
-			if (ev.type == CollisionEvent::Type::ADDED) {
-				py_newvec3(py_pushtmp(), c11_vec3{ { ev.normal.x, ev.normal.y, ev.normal.z } });
-			} else {
-				py_newnone(py_pushtmp());
-			}
-			if (!py_vectorcall(5, 0)) {
+			const CollisionEvent &ev = self->curr_events[i];
+			if (!dispatch_collision_event(argv, ev)) {
 				return false;
 			}
 		}

@@ -152,7 +152,7 @@ struct CollisionEvent {
 	Vector3 normal;
 
 	CollisionEvent() = default;
-	CollisionEvent(CollisionEvent::Type type, BodyID a, BodyID b, Vector3i xzl, Vector3 normal) :
+	CollisionEvent(CollisionEvent::Type type, BodyID a, BodyID b, Vector3i xzl, Vector3 normal = Vector3(0, 0, 0)) :
 			type(type), a(a), b(b), xzl(xzl), normal(normal) {}
 };
 
@@ -217,10 +217,10 @@ struct Space {
 	}
 
 	void begin_clear_curr_pairs() {
+		curr_events.clear();
 		for (auto &kv : curr_pairs) {
 			kv.value.tagged = false;
 		}
-		curr_events.clear();
 	}
 
 	void add_curr_pair(BodyID a, BodyID b, Vector3i xzl, Vector3 normal, float max_sep) {
