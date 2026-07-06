@@ -67,8 +67,17 @@ struct Body {
 	Vector3 velocity;
 	Vector3 instant_velocity;
 
-	Body(BodyType type, uint8_t layer, bool is_trigger, Cube cube, float mass) :
-			type(type), layer(layer), is_trigger(is_trigger), cube(cube), mass(mass), chunk_index(-1), prev(), next(), velocity(0, 0, 0), instant_velocity(0, 0, 0) {}
+	Body(BodyType type, Vector3 extent, float radius, float mass) :
+			type(type),
+			layer(0),
+			is_trigger(false),
+			cube(Vector3(0, 0, 0), extent, radius),
+			mass(mass),
+			chunk_index(-1),
+			prev(),
+			next(),
+			velocity(0, 0, 0),
+			instant_velocity(0, 0, 0) {}
 
 	Vector3 position() const { return cube.core.position(); }
 	Vector2 position_xz() const { return cube.core.position_xz(); }
@@ -130,6 +139,23 @@ struct CollisionPair {
 struct Space;
 using BroadPhaseCallback = void (*)(Space *space, BodyID candidate, Vector3i xzl, void *ctx);
 
+struct CollisionEvent {
+	enum class Type : int {
+		ADDED,
+		REMOVED,
+	};
+
+	Type type;
+	BodyID a;
+	BodyID b;
+	Vector3i xzl;
+	Vector3 normal;
+
+	CollisionEvent() = default;
+	CollisionEvent(CollisionEvent::Type type, BodyID a, BodyID b, Vector3i xzl, Vector3 normal) :
+			type(type), a(a), b(b), xzl(xzl), normal(normal) {}
+};
+
 struct Space {
 	Tilemap tilemap;
 	Chunker chunker;
@@ -138,9 +164,6 @@ struct Space {
 	uint32_t layer_masks[32];
 	bool locked;
 
-	void (*pair_added)(Space *space, BodyID a, BodyID b, Vector3i xzl, Vector3 normal);
-	void (*pair_removed)(Space *space, BodyID a, BodyID b, Vector3i xzl, Vector3 normal);
-
 	BodyID *chunks;
 	siv::Vector<Body> nonstatic_bodies;
 	siv::Vector<Body> static_bodies;
@@ -148,6 +171,9 @@ struct Space {
 	HashMap<TileID, BodyID> tile_body_registry;
 
 	HashMap<CollisionPair, CollisionPair::Info, CollisionPair::Hasher> curr_pairs;
+	HashMap<Vector3i, CollisionPair> curr_pairs_by_xzl;
+
+	Vector<CollisionEvent> curr_events;
 
 	Space(Tilemap tilemap, int chunk_size) :
 			tilemap(tilemap), chunker(tilemap.width(), tilemap.height(), chunk_size) {
@@ -156,15 +182,13 @@ struct Space {
 			layer_masks[i] = 0xFFFFFFFF;
 		}
 		this->locked = false;
-		this->pair_added = nullptr;
-		this->pair_removed = nullptr;
 		this->chunks = new BodyID[chunker.n_chunks_x * chunker.n_chunks_y];
 	}
 
 	int width() const { return tilemap.width(); }
 	int height() const { return tilemap.height(); }
 	int body_count() const {
-		return (int)nonstatic_bodies.size() + (int)static_bodies.size();
+		return nonstatic_bodies.size() + static_bodies.size();
 	}
 
 	siv::Vector<Body> *get_body_vector(BodyType type) {
@@ -186,10 +210,17 @@ struct Space {
 		return &v->operator[](bid.id);
 	}
 
+	void teleport_body(BodyID bid, Vector3 position) {
+		Body *body = get_body(bid);
+		body->cube.core.set_position(position);
+		update_body_chunk(bid);
+	}
+
 	void begin_clear_curr_pairs() {
 		for (auto &kv : curr_pairs) {
 			kv.value.tagged = false;
 		}
+		curr_events.clear();
 	}
 
 	void add_curr_pair(BodyID a, BodyID b, Vector3i xzl, Vector3 normal, float max_sep) {
@@ -200,7 +231,7 @@ struct Space {
 			*p_info = new_info;
 		} else {
 			curr_pairs.insert(pair, new_info);
-			// SIGNAL: pair_added
+			curr_events.push_back(CollisionEvent(CollisionEvent::Type::ADDED, a, b, xzl, normal));
 		}
 	}
 
@@ -210,38 +241,41 @@ struct Space {
 			auto next = it;
 			++next;
 			if (!it->value.tagged) {
-				// SIGNAL: pair_removed
+				CollisionEvent ev(CollisionEvent::Type::REMOVED, it->key.a, it->key.b, it->key.xzl, it->value.normal);
+				curr_events.push_back(ev);
 				curr_pairs.remove(it);
 			}
 			it = next;
 		}
 	}
 
-	BodyID create_dynamic_body(uint8_t layer, bool is_trigger, Cube cube, float mass) {
-		siv::ID id = nonstatic_bodies.emplace_back(BodyType::DYNAMIC, layer, is_trigger, cube, mass);
-		BodyID bid(BodyType::DYNAMIC, id);
-		update_body_chunk(bid);
-		return bid;
-	}
-
-	BodyID create_kinematic_body(uint8_t layer, bool is_trigger, Cube cube) {
-		siv::ID id = nonstatic_bodies.emplace_back(BodyType::KINEMATIC, layer, is_trigger, cube, INFINITY);
-		BodyID bid(BodyType::KINEMATIC, id);
-		update_body_chunk(bid);
-		return bid;
-	}
-
-	BodyID create_static_body(uint8_t layer, bool is_trigger, Cube cube) {
-		siv::ID id = static_bodies.emplace_back(BodyType::STATIC, layer, is_trigger, cube, INFINITY);
-		BodyID bid(BodyType::STATIC, id);
-		update_body_chunk(bid);
-		return bid;
-	}
-
-	BodyID create_tile_body(uint8_t layer, bool is_trigger, Cube cube) {
-		siv::ID id = tile_bodies.emplace_back(BodyType::TILE, layer, is_trigger, cube, INFINITY);
-		BodyID bid(BodyType::TILE, id);
-		return bid;
+	BodyID create_body(BodyType type, Vector3 extent, float radius) {
+		switch (type) {
+			case BodyType::DYNAMIC: {
+				siv::ID id = nonstatic_bodies.emplace_back(BodyType::DYNAMIC, extent, radius, 1.0f);
+				BodyID bid(BodyType::DYNAMIC, id);
+				update_body_chunk(bid);
+				return bid;
+			}
+			case BodyType::KINEMATIC: {
+				siv::ID id = nonstatic_bodies.emplace_back(BodyType::KINEMATIC, extent, radius, INFINITY);
+				BodyID bid(BodyType::KINEMATIC, id);
+				update_body_chunk(bid);
+				return bid;
+			}
+			case BodyType::STATIC: {
+				siv::ID id = static_bodies.emplace_back(BodyType::STATIC, extent, radius, INFINITY);
+				BodyID bid(BodyType::STATIC, id);
+				update_body_chunk(bid);
+				return bid;
+			}
+			case BodyType::TILE: {
+				siv::ID id = tile_bodies.emplace_back(BodyType::TILE, extent, radius, INFINITY);
+				BodyID bid(BodyType::TILE, id);
+				return bid;
+			}
+		}
+		return BodyID();
 	}
 
 	void destroy_body(BodyID bid) {

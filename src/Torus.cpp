@@ -3,6 +3,17 @@
 
 namespace sbx {
 
+Vector3 project_point_on_line(Vector3 point, Line line) {
+	Vector3 d = line[1] - line[0];
+	if (fabs(d.x) < LINE_IS_POINT_THRESHOLD && fabs(d.y) < LINE_IS_POINT_THRESHOLD && fabs(d.z) < LINE_IS_POINT_THRESHOLD) {
+		return line[0];
+	}
+	Vector3 v = point - line[0];
+	float t = v.dot(d) / d.dot(d);
+	t = CLAMP(t, 0.0f, 1.0f);
+	return line[0] + t * d;
+}
+
 int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int *out, int out_size) {
 	int n = size / chunk_size;
 	assert(size % chunk_size == 0);
@@ -44,9 +55,7 @@ int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int
 	return k;
 }
 
-void torus_normalize_two_aabb(
-		int width, int height,
-		AABB *p_aabb_a, AABB *p_aabb_b) {
+void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b) {
 	const double w = (double)width;
 	const double h = (double)height;
 

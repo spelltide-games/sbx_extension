@@ -5,6 +5,11 @@
 #include "godot_cpp/variant/vector3.hpp"
 #include <cassert>
 
+extern "C" {
+double dmath_fmod(double, double);
+double dmath_floor(double);
+}
+
 namespace sbx {
 
 using namespace godot;
@@ -32,25 +37,13 @@ struct UnitVector3 {
 	}
 };
 
-static inline Vector3 project_point_on_line(Vector3 point, Line line) {
-	Vector3 d = line[1] - line[0];
-	if (fabs(d.x) < LINE_IS_POINT_THRESHOLD && fabs(d.y) < LINE_IS_POINT_THRESHOLD && fabs(d.z) < LINE_IS_POINT_THRESHOLD) {
-		return line[0];
-	}
-	Vector3 v = point - line[0];
-	float t = v.dot(d) / d.dot(d);
-	t = CLAMP(t, 0.0f, 1.0f);
-	return line[0] + t * d;
-}
+Vector3 project_point_on_line(Vector3 point, Line line);
 
-static inline bool aabb_intersects(Vector3 vmin, Vector3 vmax, Vector3 other_vmin, Vector3 other_vmax) {
-	return (other_vmin.x < vmax.x) && (vmin.x < other_vmax.x) &&
-			(other_vmin.y < vmax.y) && (vmin.y < other_vmax.y) &&
-			(other_vmin.z < vmax.z) && (vmin.z < other_vmax.z);
+static inline int posmod(int x, int m) {
+	assert(m > 0);
+	int r = x % m;
+	return r < 0 ? r + m : r;
 }
-
-double dmath_fmod(double, double);
-double dmath_floor(double);
 
 static inline double posmodf(double x, double m) {
 	double r = dmath_fmod(x, m);
@@ -78,11 +71,14 @@ struct AABB {
 
 	Vector3 position() const { return (vmin + vmax) * 0.5f; }
 	Vector2 position_xz() const { return Vector2((vmin.x + vmax.x) * 0.5f, (vmin.z + vmax.z) * 0.5f); }
+	Vector3 extent() const { return size() * 0.5f; }
 	Vector3 size() const { return vmax - vmin; }
 	Vector2 size_xz() const { return Vector2(vmax.x - vmin.x, vmax.z - vmin.z); }
 
 	bool intersects(const AABB &other) const {
-		return aabb_intersects(vmin, vmax, other.vmin, other.vmax);
+		return (other.vmin.x < vmax.x) && (vmin.x < other.vmax.x) &&
+				(other.vmin.y < vmax.y) && (vmin.y < other.vmax.y) &&
+				(other.vmin.z < vmax.z) && (vmin.z < other.vmax.z);
 	}
 
 	void move(Vector3 offset) {
@@ -125,12 +121,6 @@ struct Cube {
 		core.vmax += delta;
 	}
 };
-
-static inline int posmod(int x, int m) {
-	assert(m > 0);
-	int r = x % m;
-	return r < 0 ? r + m : r;
-}
 
 struct Chunker {
 	int width;
