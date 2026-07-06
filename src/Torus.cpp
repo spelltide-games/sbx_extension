@@ -3,14 +3,6 @@
 
 namespace sbx {
 
-double dmath_fmod(double, double);
-double dmath_floor(double);
-
-static double posmodf(double x, double m) {
-	double r = dmath_fmod(x, m);
-	return r >= 0 ? r : r + m;
-}
-
 int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int *out, int out_size) {
 	int n = size / chunk_size;
 	assert(size % chunk_size == 0);
@@ -50,6 +42,20 @@ int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int
 		}
 	}
 	return k;
+}
+
+void torus_normalize_two_aabb(
+		int width, int height,
+		AABB *p_aabb_a, AABB *p_aabb_b) {
+	const double w = (double)width;
+	const double h = (double)height;
+
+	Vector2 rel_xz = p_aabb_b->position_xz() - p_aabb_a->position_xz();
+	rel_xz.x = posmodf(rel_xz.x + 0.5 * w, w) - 0.5 * w;
+	rel_xz.y = posmodf(rel_xz.y + 0.5 * h, h) - 0.5 * h;
+
+	p_aabb_a->set_position(Vector3(0, 0, 0));
+	p_aabb_b->set_position(Vector3(rel_xz.x, 0, rel_xz.y));
 }
 
 void AAFace::get_ccw_points(Vector3 p_points[4]) const {
@@ -129,14 +135,6 @@ AAFace AABB::get_face(UnitVector3 normal) const {
 		face.vmax[axis] = vmin[axis];
 	}
 	return face;
-}
-
-void AABB::torus_normalize_both(int width, int height, AABB* p_other) {
-	Vector3 offset = vmin;
-	vmin -= offset;
-	vmax -= offset;
-	p_other->vmin -= offset;
-	p_other->vmax -= offset;
 }
 
 float AABB::find_max_separation(const AABB &other, UnitVector3 *p_reference_normal) const {

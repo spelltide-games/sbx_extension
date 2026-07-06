@@ -47,7 +47,7 @@ struct BodyID {
 
 	struct Hasher {
 		static uint32_t hash(const BodyID &bid) {
-			return bid.hash();
+			return (uint32_t)bid.hash();
 		}
 	};
 };
@@ -113,8 +113,8 @@ struct CollisionPair {
 
 	struct Hasher {
 		static uint32_t hash(const CollisionPair &pair) {
-			uint32_t h1 = pair.a.hash();
-			uint32_t h2 = pair.b.hash();
+			uint32_t h1 = (uint32_t)pair.a.hash();
+			uint32_t h2 = (uint32_t)pair.b.hash();
 			h1 ^= h2 + 0x9e3779b9 + (h1 << 6) + (h1 >> 2);
 			return h1;
 		}
@@ -164,7 +164,7 @@ struct Space {
 	int width() const { return tilemap.width(); }
 	int height() const { return tilemap.height(); }
 	int body_count() const {
-		return nonstatic_bodies.size() + static_bodies.size();
+		return (int)nonstatic_bodies.size() + (int)static_bodies.size();
 	}
 
 	siv::Vector<Body> *get_body_vector(BodyType type) {

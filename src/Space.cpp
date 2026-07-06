@@ -25,7 +25,8 @@ void Space::broad_phase_query(const AABB &aabb, uint32_t layer_mask, bool only_d
 					if (bid) {
 						Body *candidate = get_body(*bid);
 						if (layer_mask & (1U << candidate->layer)) {
-							AABB new_aabb = candidate->cube.aabb().moved(offset_xz);
+							AABB new_aabb = candidate->cube.aabb();
+							new_aabb.move(offset_xz);
 							if (aabb.intersects(new_aabb)) {
 								callback(this, *bid, Vector3i(x, z, l), ctx);
 							}
@@ -131,8 +132,9 @@ void Space::step(float delta) {
 			// narrow phase
 			Vector3 offset_xz(xzl.x + 0.5f, 0, xzl.z + 0.5f);
 			AABB a_core = a->cube.core;
-			AABB b_core = b->cube.core.moved(offset_xz);
-			a_core.torus_normalize_both(torus_size.x, torus_size.y, &b_core);
+			AABB b_core = b->cube.core;
+			b_core.move(offset_xz);
+			torus_normalize_two_aabb(torus_size.x, torus_size.y, &a_core, &b_core);
 
 			UnitVector3 n;
 			float max_sep = a_core.find_max_separation(b_core, &n);

@@ -49,8 +49,12 @@ static inline bool aabb_intersects(Vector3 vmin, Vector3 vmax, Vector3 other_vmi
 			(other_vmin.z < vmax.z) && (vmin.z < other_vmax.z);
 }
 
-static inline bool torus_aabb_intersects(int width, int height, Vector3 vmin, Vector3 vmax, Vector3 other_vmin, Vector3 other_vmax) {
-	return false;
+double dmath_fmod(double, double);
+double dmath_floor(double);
+
+static inline double posmodf(double x, double m) {
+	double r = dmath_fmod(x, m);
+	return r >= 0 ? r : r + m;
 }
 
 struct AAFace {
@@ -75,18 +79,25 @@ struct AABB {
 	Vector3 position() const { return (vmin + vmax) * 0.5f; }
 	Vector2 position_xz() const { return Vector2((vmin.x + vmax.x) * 0.5f, (vmin.z + vmax.z) * 0.5f); }
 	Vector3 size() const { return vmax - vmin; }
+	Vector2 size_xz() const { return Vector2(vmax.x - vmin.x, vmax.z - vmin.z); }
 
 	bool intersects(const AABB &other) const {
 		return aabb_intersects(vmin, vmax, other.vmin, other.vmax);
 	}
 
-	AABB moved(Vector3 offset) {
-		return AABB(vmin + offset, vmax + offset);
+	void move(Vector3 offset) {
+		vmin += offset;
+		vmax += offset;
+	}
+
+	void set_position(Vector3 position) {
+		Vector3 size = this->size();
+		vmin = position - size * 0.5f;
+		vmax = position + size * 0.5f;
 	}
 
 	AAFace get_face(UnitVector3 normal) const;
 	float find_max_separation(const AABB &other, UnitVector3 *p_reference_normal) const;
-	void torus_normalize_both(int width, int height, AABB* p_other);
 };
 
 struct Cube {
@@ -164,5 +175,6 @@ struct Chunker {
 };
 
 int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int *out, int out_size);
+void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b);
 
 } // namespace sbx
