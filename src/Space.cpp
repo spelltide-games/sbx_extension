@@ -3,8 +3,8 @@
 
 namespace sbx {
 
-void Space::broad_phase_query(const AABB &aabb, uint32_t layer_mask, bool only_dynamic_type, void *ctx, BroadPhaseCallback callback) {
-	if (!only_dynamic_type) {
+void Space::broad_phase_query(const AABB &aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
+	if (flags & (uint32_t)BroadPhaseFlags::INCLUDE_TILES) {
 #define MAX_C_PER_D 64
 		int buf_x[MAX_C_PER_D];
 		int buf_z[MAX_C_PER_D];
@@ -12,6 +12,9 @@ void Space::broad_phase_query(const AABB &aabb, uint32_t layer_mask, bool only_d
 		// detect tiles
 		int n_buf_x = sbx::torus_iter_chunks_1d(width(), 1, aabb.vmin.x, aabb.vmax.x, buf_x, MAX_C_PER_D);
 		int n_buf_z = sbx::torus_iter_chunks_1d(height(), 1, aabb.vmin.z, aabb.vmax.z, buf_z, MAX_C_PER_D);
+
+		assert(n_buf_x <= MAX_C_PER_D);
+		assert(n_buf_z <= MAX_C_PER_D);
 
 		for (int i = 0; i < n_buf_x; ++i) {
 			for (int j = 0; j < n_buf_z; ++j) {
@@ -38,22 +41,21 @@ void Space::broad_phase_query(const AABB &aabb, uint32_t layer_mask, bool only_d
 #undef MAX_C_PER_D
 	}
 
-	// detect bodies
-	for (int i = -1; i <= 1; i++) {
-		for (int j = -1; j <= 1; j++) {
-			Vector2i chunk_pos = chunker.map_2d(aabb.position_xz());
-			BodyID p = chunks[chunker.torus_2d_to_1d(chunk_pos + Vector2i(i, j))];
-			while (p) {
-				Body *candidate = get_body(p);
-				bool should_skip = only_dynamic_type && candidate->type != BodyType::DYNAMIC;
-				if (!should_skip) {
+	if (flags & (uint32_t)BroadPhaseFlags::INCLUDE_BODIES) {
+		// detect bodies
+		for (int i = -1; i <= 1; i++) {
+			for (int j = -1; j <= 1; j++) {
+				Vector2i chunk_pos = chunker.map_2d(aabb.position_xz());
+				BodyID p = chunks[chunker.torus_2d_to_1d(chunk_pos + Vector2i(i, j))];
+				while (p) {
+					Body *candidate = get_body(p);
 					if (layer_mask & (1U << candidate->layer)) {
 						if (aabb.intersects(candidate->cube.aabb())) {
 							callback(this, p, Vector3i(0, 0, 0), ctx);
 						}
 					}
+					p = candidate->next;
 				}
-				p = candidate->next;
 			}
 		}
 	}
@@ -98,10 +100,89 @@ void Space::remove_body_chunk(BodyID bid) {
 	body->chunk_index = -1;
 }
 
-void Space::step(float delta) {
-	assert(!locked);
-	locked = true;
-	begin_clear_curr_pairs();
+void Space::add_curr_pair(BodyID a, BodyID b, Vector3i xzl, Vector3 normal, float max_sep) {
+	CollisionPair pair(a, b, xzl);
+	CollisionPair::Info *p_info = curr_pairs.getptr(pair);
+	CollisionPair::Info new_info{ normal, max_sep, true };
+	if (p_info) {
+		*p_info = new_info;
+	} else {
+		curr_pairs.insert(pair, new_info);
+		curr_events.push_back(CollisionEvent(CollisionEvent::Type::ADDED, a, b, xzl, normal));
+	}
+}
+
+BodyID Space::create_body(BodyType type, Vector3 aabb_extent, float radius01) {
+	switch (type) {
+		case BodyType::DYNAMIC: {
+			siv::ID id = nonstatic_bodies.emplace_back(BodyType::DYNAMIC, aabb_extent, radius01, 1.0f);
+			BodyID bid(BodyType::DYNAMIC, id);
+			update_body_chunk(bid);
+			return bid;
+		}
+		case BodyType::KINEMATIC: {
+			siv::ID id = nonstatic_bodies.emplace_back(BodyType::KINEMATIC, aabb_extent, radius01, INFINITY);
+			BodyID bid(BodyType::KINEMATIC, id);
+			update_body_chunk(bid);
+			return bid;
+		}
+		case BodyType::STATIC: {
+			siv::ID id = static_bodies.emplace_back(BodyType::STATIC, aabb_extent, radius01, INFINITY);
+			BodyID bid(BodyType::STATIC, id);
+			update_body_chunk(bid);
+			return bid;
+		}
+		case BodyType::TILE: {
+			siv::ID id = tile_bodies.emplace_back(BodyType::TILE, aabb_extent, radius01, INFINITY);
+			BodyID bid(BodyType::TILE, id);
+			return bid;
+		}
+	}
+	return BodyID();
+}
+
+void Space::destroy_body(BodyID bid, CollisionEventHandler handler, void *handler_ctx) {
+	ERR_FAIL_COND(bid.type == BodyType::TILE);
+	// remove from curr_pairs
+	auto it = curr_pairs.begin();
+	while (it) {
+		auto next = it;
+		++next;
+		if (it->key.a == bid || it->key.b == bid) {
+			assert(it->value.tagged);
+			CollisionEvent ev(CollisionEvent::Type::REMOVED, it->key.a, it->key.b, it->key.xzl);
+			handler(ev, handler_ctx);
+			curr_pairs.remove(it);
+		}
+		it = next;
+	}
+	remove_body_chunk(bid);
+	get_body_vector(bid.type)->erase(bid.id);
+}
+
+void Space::remove_pairs_with_tile(Vector3i xzl, CollisionEventHandler handler, void *handler_ctx) {
+	// remove from curr_pairs
+	auto it = curr_pairs.begin();
+	while (it) {
+		auto next = it;
+		++next;
+		if (it->key.xzl == xzl) {
+			assert(it->key.b.type == BodyType::TILE);
+			assert(it->value.tagged);
+			CollisionEvent ev(CollisionEvent::Type::REMOVED, it->key.a, it->key.b, it->key.xzl);
+			handler(ev, handler_ctx);
+			curr_pairs.remove(it);
+		}
+		it = next;
+	}
+}
+
+void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) {
+	// begin pairs
+	curr_events.clear();
+	for (auto &kv : curr_pairs) {
+		kv.value.tagged = false;
+	}
 
 	// find collision pairs
 	for (int i = 0; i < nonstatic_bodies.size(); ++i) {
@@ -116,8 +197,8 @@ void Space::step(float delta) {
 			continue;
 		}
 
-		bool only_dynamic_type = a->type == BodyType::KINEMATIC;
-		broad_phase_query(a->cube.aabb(), layer_masks[a->layer], only_dynamic_type, (void *)&ctx_pair, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
+		uint32_t flags = (uint32_t)BroadPhaseFlags::ALL;
+		broad_phase_query(a->cube.aabb(), layer_masks[a->layer], flags, (void *)&ctx_pair, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
 			std::pair<Vector2i, BodyID> *ctx_pair = (std::pair<Vector2i, BodyID> *)ctx;
 			Vector2i torus_size = ctx_pair->first;
 			BodyID a_bid = ctx_pair->second;
@@ -130,10 +211,11 @@ void Space::step(float delta) {
 			}
 
 			// narrow phase
-			Vector3 offset_xz(xzl.x + 0.5f, 0, xzl.z + 0.5f);
 			AABB a_core = a->cube.core;
 			AABB b_core = b->cube.core;
-			b_core.move(offset_xz);
+			if (b->type == BodyType::TILE) {
+				b_core.move(Vector3(xzl.x + 0.5f, 0, xzl.z + 0.5f));
+			}
 			torus_normalize_two_aabb(torus_size.x, torus_size.y, &a_core, &b_core);
 
 			UnitVector3 n;
@@ -154,7 +236,7 @@ void Space::step(float delta) {
 					if (n_alt_length > FLOAT_EPS) {
 						n_alt /= n_alt_length;
 					} else {
-						n_alt = a->position() - (b->position() + offset_xz);
+						n_alt = a_core.position() - b_core.position();
 						n_alt /= n_alt.length();
 					}
 					space->add_curr_pair(a_bid, candidate, xzl, n_alt, max_sep);
@@ -164,7 +246,18 @@ void Space::step(float delta) {
 		});
 	}
 
-	end_clear_curr_pairs();
+	// end pairs
+	auto it = curr_pairs.begin();
+	while (it) {
+		auto next = it;
+		++next;
+		if (!it->value.tagged) {
+			CollisionEvent ev(CollisionEvent::Type::REMOVED, it->key.a, it->key.b, it->key.xzl);
+			curr_events.push_back(ev);
+			curr_pairs.remove(it);
+		}
+		it = next;
+	}
 
 	// resolve collisions
 	for (const auto &[pair, info] : curr_pairs) {
@@ -174,6 +267,10 @@ void Space::step(float delta) {
 		Body *b = get_body(pair.b);
 
 		if (a->is_trigger || b->is_trigger) {
+			continue;
+		}
+
+		if (a->type == BodyType::KINEMATIC && b->type != BodyType::DYNAMIC) {
 			continue;
 		}
 
@@ -241,12 +338,144 @@ void Space::step(float delta) {
 		// body->velocity += this->gravity * delta;
 		Vector3 total_vel = body->velocity + body->instant_velocity;
 		body->instant_velocity.zero();
-		body->cube.move(total_vel * delta);
+		body->cube.torus_move(total_vel * delta, width(), height());
 		update_body_chunk(bid);
 	}
 
-	assert(locked);
-	locked = false;
+	// dispatch events
+	for (int i = 0; i < curr_events.size(); ++i) {
+		const CollisionEvent &ev = curr_events[i];
+		handler(ev, handler_ctx);
+	}
+}
+
+PackedVector3Array Space::draw_body(BodyID bid, Vector3i xzl) {
+	Body *body = get_body(bid);
+	AABB core = body->cube.core;
+	if (body->type == BodyType::TILE) {
+		core.move(Vector3(xzl.x + 0.5f, 0, xzl.z + 0.5f));
+	}
+
+	auto rr = [](const AABB &core, float radius, float t, int axis) {
+		const int corner_res = 8;
+		PackedVector3Array loop_points;
+		int u;
+		int v;
+		if (axis == 0) { // 法线为X轴
+			u = 1;
+			v = 2;
+		} else if (axis == 1) { // 法线为Y轴
+			u = 0;
+			v = 2;
+		} else { // 法线为Z轴
+			u = 0;
+			v = 1;
+		}
+
+		float min_val = core.vmin[axis] - radius;
+		float max_val = core.vmax[axis] + radius;
+		float curr_val = Math::lerp(min_val, max_val, t);
+
+		// 圆角区域的深度 dy
+		float dy = 0.0;
+		if (curr_val < core.vmin[axis]) {
+			dy = core.vmin[axis] - curr_val;
+		} else if (curr_val > core.vmax[axis]) {
+			dy = curr_val - core.vmax[axis];
+		}
+
+		float r = Math::sqrt(Math::max<float>(0.0, radius * radius - dy * dy));
+
+		auto make_vec3 = [=](float val_axis, float val_u, float val_v) {
+			Vector3 vec(0, 0, 0);
+			vec[axis] = val_axis;
+			vec[u] = val_u;
+			vec[v] = val_v;
+			return vec;
+		};
+
+		const float PI = 3.14159265358979323846;
+
+		// 第一象限 (+u, +v)
+		for (int j = 0; j <= corner_res; j++) {
+			float ang = float(j) / corner_res * (PI / 2.0);
+			loop_points.append(make_vec3(curr_val, core.vmax[u] + r * Math::sin(ang), core.vmax[v] + r * Math::cos(ang)));
+		}
+
+		// 第二象限 (+u, -v)
+		for (int j = 0; j <= corner_res; j++) {
+			float ang = PI / 2.0 + float(j) / corner_res * (PI / 2.0);
+			loop_points.append(make_vec3(curr_val, core.vmax[u] + r * Math::sin(ang), core.vmin[v] + r * Math::cos(ang)));
+		}
+
+		// 第三象限 (-u, -v)
+		for (int j = 0; j <= corner_res; j++) {
+			float ang = PI + float(j) / corner_res * (PI / 2.0);
+			loop_points.append(make_vec3(curr_val, core.vmin[u] + r * Math::sin(ang), core.vmin[v] + r * Math::cos(ang)));
+		}
+
+		// 第四象限 (-u, +v)
+		for (int j = 0; j <= corner_res; j++) {
+			float ang = 3.0 * PI / 2.0 + float(j) / corner_res * (PI / 2.0);
+			loop_points.append(make_vec3(curr_val, core.vmin[u] + r * Math::sin(ang), core.vmax[v] + r * Math::cos(ang)));
+		}
+
+		return loop_points;
+	};
+
+	PackedVector3Array points;
+	Vector3 aabb_size = body->cube.aabb().extent() * 2;
+	for (int axis = 0; axis <= 2; axis++) {
+		float t = body->cube.radius / aabb_size[axis];
+		points.append_array(rr(core, body->cube.radius, t, axis));
+		points.append_array(rr(core, body->cube.radius, 1 - t, axis));
+	}
+	return points;
+}
+
+PackedVector3Array Space::draw_chunk_bodies(int x, int y, int w, int h) {
+	PackedVector3Array points;
+	Vector2i chunk_pos(x, y);
+	Vector2i max_chunk_pos = chunk_pos + Vector2i(w, h);
+	max_chunk_pos.x = Math::min(max_chunk_pos.x, chunker.n_chunks_x);
+	max_chunk_pos.y = Math::min(max_chunk_pos.y, chunker.n_chunks_y);
+	for (int cx = chunk_pos.x; cx < max_chunk_pos.x; ++cx) {
+		for (int cz = chunk_pos.y; cz < max_chunk_pos.y; ++cz) {
+			int chunk_index = chunker.torus_2d_to_1d(Vector2i(cx, cz));
+			BodyID p = chunks[chunk_index];
+			while (p) {
+				points.append_array(draw_body(p, Vector3i(0, 0, 0)));
+				p = get_body(p)->next;
+			}
+		}
+	}
+	return points;
+}
+
+PackedVector3Array Space::draw_chunk_tiles(int x, int y, int w, int h) {
+	PackedVector3Array points;
+	Vector2i chunk_pos(x, y);
+	Vector2i max_chunk_pos = chunk_pos + Vector2i(w, h);
+	max_chunk_pos.x = Math::min(max_chunk_pos.x, chunker.n_chunks_x);
+	max_chunk_pos.y = Math::min(max_chunk_pos.y, chunker.n_chunks_y);
+	for (int cx = chunk_pos.x; cx < max_chunk_pos.x; ++cx) {
+		for (int cz = chunk_pos.y; cz < max_chunk_pos.y; ++cz) {
+			int x_, y_, w_, h_;
+			chunker.get_slice(Vector2i(cx, cz), &x_, &y_, &w_, &h_);
+			for (int i = x_; i < x_ + w_; ++i) {
+				for (int j = y_; j < y_ + h_; ++j) {
+					Tile *tile = tilemap.get(i, j);
+					for (int l = 0; l < (int)TileLayer::COUNT; ++l) {
+						BodyID *bid = tile_body_registry.getptr(tile->data[l]);
+						if (bid) {
+							points.append_array(draw_body(*bid, Vector3i(i, j, l)));
+						}
+					}
+				}
+			}
+		}
+	}
+	return points;
 }
 
 } // namespace sbx

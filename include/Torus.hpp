@@ -103,11 +103,16 @@ struct Cube {
 	Cube() :
 			core(), radius(0) {}
 
-	Cube(Vector3 position, Vector3 extent, float radius01) {
-		this->radius = radius01 * extent[extent.min_axis_index()];
-		Vector3 offset = (extent - Vector3(1, 1, 1) * this->radius);
+	Cube(Vector3 position, Vector3 aabb_extent, float radius01) {
+		this->radius = radius01 * aabb_extent[aabb_extent.min_axis_index()];
+		Vector3 offset = (aabb_extent - Vector3(1, 1, 1) * this->radius);
 		this->core.vmin = position - offset;
 		this->core.vmax = position + offset;
+	}
+
+	float radius01() const {
+		Vector3 aabb_extent = aabb().extent();
+		return radius / aabb_extent[aabb_extent.min_axis_index()];
 	}
 
 	AABB aabb() const {
@@ -116,9 +121,11 @@ struct Cube {
 		return AABB(core.vmin - Vector3(radius, radius, radius), core.vmax + Vector3(radius, radius, radius));
 	}
 
-	void move(Vector3 delta) {
-		core.vmin += delta;
-		core.vmax += delta;
+	void torus_move(Vector3 delta, int width, int height) {
+		Vector3 pos = core.position() + delta;
+		pos.x = posmodf(pos.x, width);
+		pos.z = posmodf(pos.z, height);
+		core.set_position(pos);
 	}
 };
 
@@ -133,6 +140,13 @@ struct Chunker {
 			width(width), height(height), chunk_size(chunk_size) {
 		n_chunks_x = (width + chunk_size - 1) / chunk_size;
 		n_chunks_y = (height + chunk_size - 1) / chunk_size;
+	}
+
+	void get_slice(Vector2i chunk_pos, int *p_x, int *p_y, int *p_w, int *p_h) const {
+		*p_x = chunk_pos.x * chunk_size;
+		*p_y = chunk_pos.y * chunk_size;
+		*p_w = chunk_size;
+		*p_h = chunk_size;
 	}
 
 	Vector2i map_2d(float x, float y) const {

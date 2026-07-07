@@ -1,12 +1,12 @@
 #include "Space.hpp"
-#include "pocketpy.h"
+#include "pkpy.hpp"
 
 namespace sbx {
 
 static py_Type _tp_BodyID;
 py_Type get_BodyID_type() {
 	if (_tp_BodyID == 0) {
-		_tp_BodyID = py_gettype("sbxcpp", py_name("BodyID"));
+		_tp_BodyID = py_gettype("sbxcpp.space", py_name("BodyID"));
 	}
 	return _tp_BodyID;
 }
@@ -41,7 +41,6 @@ static void setup_Tilemap(py_GlobalRef mod) {
 #define BIND_INT_PROPERTY(__name, __getter)                 \
 	py_bindmethod(t, #__name, [](int argc, py_Ref argv) {   \
 		PY_CHECK_ARGC(1);                                   \
-		PY_CHECK_ARG_TYPE(0, tp_object);                    \
 		Tilemap *self = (Tilemap *)py_touserdata(&argv[0]); \
 		py_newint(py_retval(), self->__getter);             \
 		return true;                                        \
@@ -60,7 +59,6 @@ static void setup_Tilemap(py_GlobalRef mod) {
 
 	py_bindmethod(t, "set", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(5);
-		PY_CHECK_ARG_TYPE(0, tp_object);
 		PY_CHECK_ARG_TYPE(1, tp_int);
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		PY_CHECK_ARG_TYPE(3, tp_int);
@@ -80,7 +78,6 @@ static void setup_Tilemap(py_GlobalRef mod) {
 
 	py_bindmethod(t, "get", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(4);
-		PY_CHECK_ARG_TYPE(0, tp_object);
 		PY_CHECK_ARG_TYPE(1, tp_int);
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		PY_CHECK_ARG_TYPE(3, tp_int);
@@ -97,7 +94,6 @@ static void setup_Tilemap(py_GlobalRef mod) {
 
 	py_bindmethod(t, "setv", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(4);
-		PY_CHECK_ARG_TYPE(0, tp_object);
 		PY_CHECK_ARG_TYPE(1, tp_int);
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		PY_CHECK_ARG_TYPE(3, tp_vec4i);
@@ -116,7 +112,6 @@ static void setup_Tilemap(py_GlobalRef mod) {
 
 	py_bindmethod(t, "getv", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(3);
-		PY_CHECK_ARG_TYPE(0, tp_object);
 		PY_CHECK_ARG_TYPE(1, tp_int);
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		Tilemap *self = (Tilemap *)py_touserdata(&argv[0]);
@@ -134,7 +129,6 @@ static void setup_Tilemap(py_GlobalRef mod) {
 
 	py_bindmethod(t, "sliced", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(5);
-		PY_CHECK_ARG_TYPE(0, tp_object);
 		PY_CHECK_ARG_TYPE(1, tp_int);
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		PY_CHECK_ARG_TYPE(3, tp_int);
@@ -147,7 +141,7 @@ static void setup_Tilemap(py_GlobalRef mod) {
 		if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > self->width() || y + h > self->height()) {
 			return ValueError("invalid slice parameters");
 		}
-		py_Type tilemap_t = py_gettype("sbxcpp", py_name("Tilemap"));
+		py_Type tilemap_t = py_gettype("sbxcpp.space", py_name("Tilemap"));
 		void *ud = py_newobject(py_retval(), tilemap_t, 0, sizeof(Tilemap));
 		new (ud) Tilemap(self->sliced(x, y, w, h));
 		return true;
@@ -171,27 +165,30 @@ static void setup_BodyID(py_GlobalRef mod) {
 		return true; }, NULL);
 }
 
-static bool dispatch_collision_event(py_Ref space, const CollisionEvent &ev) {
-	py_Ref callbacks = py_getslot(space, 0);
+static void collision_event_handler(const CollisionEvent &ev, void *space) {
+	py_Ref callbacks = py_getslot((py_Ref)space, 0);
+	py_StackRef p0 = py_peek(0);
 	py_push(callbacks);
 	static py_Name on_pair_add = py_name("on_pair_add");
 	static py_Name on_pair_remove = py_name("on_pair_remove");
 	py_Name name = (ev.type == CollisionEvent::Type::ADDED) ? on_pair_add : on_pair_remove;
 	if (!py_pushmethod(name)) {
-		return AttributeError(callbacks, name);
+		AttributeError(callbacks, name);
+		pkpy::log_python_error_and_clearexc(p0);
+		return;
 	}
-	py_newtrivial(py_pushtmp(), get_BodyID_type(), (void*)&ev.a, sizeof(BodyID));
-	py_newtrivial(py_pushtmp(), get_BodyID_type(), (void*)&ev.b, sizeof(BodyID));
+	py_newtrivial(py_pushtmp(), get_BodyID_type(), (void *)&ev.a, sizeof(BodyID));
+	py_newtrivial(py_pushtmp(), get_BodyID_type(), (void *)&ev.b, sizeof(BodyID));
 	py_newvec3i(py_pushtmp(), c11_vec3i{ { ev.xzl.x, ev.xzl.y, ev.xzl.z } });
 	if (ev.type == CollisionEvent::Type::ADDED) {
 		py_newvec3(py_pushtmp(), c11_vec3{ { ev.normal.x, ev.normal.y, ev.normal.z } });
-		if (!py_vectorcall(5, 0))
-			return false;
+		if (py_vectorcall(5, 0))
+			return;
 	} else {
-		if (!py_vectorcall(4, 0))
-			return false;
+		if (py_vectorcall(4, 0))
+			return;
 	}
-	return true;
+	pkpy::log_python_error_and_clearexc(p0);
 }
 
 static void setup_Space(py_GlobalRef mod) {
@@ -203,7 +200,7 @@ static void setup_Space(py_GlobalRef mod) {
 	py_bindmethod(t, "__new__", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(4);
 		py_Type space_t = py_totype(argv);
-		py_Type tilemap_t = py_gettype("sbxcpp", py_name("Tilemap"));
+		py_Type tilemap_t = py_gettype("sbxcpp.space", py_name("Tilemap"));
 		if (!py_checkinstance(&argv[1], tilemap_t)) {
 			return false;
 		}
@@ -220,7 +217,7 @@ static void setup_Space(py_GlobalRef mod) {
 	// tilemap
 	py_bindproperty(t, "tilemap", [](int argc, py_Ref argv) {
 		Space *self = (Space *)py_touserdata(&argv[0]);
-		py_Type tilemap_t = py_gettype("sbxcpp", py_name("Tilemap"));
+		py_Type tilemap_t = py_gettype("sbxcpp.space", py_name("Tilemap"));
 		void *ud = py_newobject(py_retval(), tilemap_t, 0, sizeof(Tilemap));
 		new (ud) Tilemap(self->tilemap);
 		return true; }, NULL);
@@ -236,15 +233,29 @@ static void setup_Space(py_GlobalRef mod) {
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, tp_int);
 		PY_CHECK_ARG_TYPE(2, tp_vec3);
-		PY_CHECK_ARG_TYPE(3, tp_float);
+		float radius01;
+		if (!py_castfloat32(&argv[3], &radius01)) {
+			return false;
+		}
 		int type_int = py_toint(&argv[1]);
-		Vector3 extent = gd_tovec3(&argv[2]);
-		float radius = py_tofloat(&argv[3]);
+		Vector3 aabb_extent = gd_tovec3(&argv[2]);
 		if (type_int < 0 || type_int > 3) {
 			return ValueError("invalid body type");
 		}
-		BodyID bid = self->create_body((BodyType)type_int, extent, radius);
+		BodyID bid = self->create_body((BodyType)type_int, aabb_extent, radius01);
 		py_newtrivial(py_retval(), get_BodyID_type(), &bid, sizeof(BodyID));
+		return true;
+	});
+
+	py_bindmethod(t, "register_tile_body", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(3);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_int);
+		PY_CHECK_ARG_TYPE(2, get_BodyID_type());
+		TileID tile_id = (TileID)py_toint(&argv[1]);
+		BodyID *bid = (BodyID *)py_totrivial(&argv[2]);
+		self->register_tile_body(tile_id, *bid);
+		py_newnone(py_retval());
 		return true;
 	});
 
@@ -253,7 +264,7 @@ static void setup_Space(py_GlobalRef mod) {
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, get_BodyID_type());
 		BodyID *bid = (BodyID *)py_totrivial(&argv[1]);
-		self->destroy_body(*bid);
+		self->destroy_body(*bid, collision_event_handler, argv);
 		py_newnone(py_retval());
 		return true;
 	});
@@ -271,26 +282,13 @@ static void setup_Space(py_GlobalRef mod) {
 	});
 
 	py_bindmethod(t, "remove_pairs_with_tile", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(3);
+		PY_CHECK_ARGC(2);
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, tp_vec3i);
 		c11_vec3i c11_xzl = py_tovec3i(&argv[1]);
-		py_Ref handler = &argv[2];
 		Vector3i xzl(c11_xzl.x, c11_xzl.y, c11_xzl.z);
-		auto it = self->curr_pairs_by_xzl.find(xzl);
-		py_Type bid_t = get_BodyID_type();
-		if (it) {
-			CollisionPair pair = it->value;
-			CollisionEvent ev(CollisionEvent::Type::REMOVED, pair.a, pair.b, pair.xzl);
-			self->curr_pairs.erase(pair);
-			self->curr_pairs_by_xzl.remove(it);
-			if (!dispatch_collision_event(argv, ev)) {
-				return false;
-			}
-			py_newbool(py_retval(), true);
-		} else {
-			py_newbool(py_retval(), false);
-		}
+		self->remove_pairs_with_tile(xzl, collision_event_handler, argv);
+		py_newnone(py_retval());
 		return true;
 	});
 
@@ -299,14 +297,7 @@ static void setup_Space(py_GlobalRef mod) {
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, tp_float);
 		float delta = py_tofloat(&argv[1]);
-		self->step(delta);
-		py_Type bid_t = get_BodyID_type();
-		for (int i = 0; i < self->curr_events.size(); ++i) {
-			const CollisionEvent &ev = self->curr_events[i];
-			if (!dispatch_collision_event(argv, ev)) {
-				return false;
-			}
-		}
+		self->step(delta, collision_event_handler, argv);
 		py_newnone(py_retval());
 		return true;
 	});
@@ -348,10 +339,46 @@ static void setup_Space(py_GlobalRef mod) {
 	BIND_BODY_SETTER(instant_velocity, instant_velocity, tp_vec3, gd_tovec3)
 
 	BIND_BODY_GETTER(position, position(), gd_newvec3)
-	BIND_BODY_GETTER(extent, cube.core.extent(), gd_newvec3)
-	BIND_BODY_GETTER(size, cube.core.size(), gd_newvec3)
+	BIND_BODY_GETTER(aabb_extent, cube.aabb().extent(), gd_newvec3)
+	BIND_BODY_GETTER(core_extent, cube.core.extent(), gd_newvec3)
 	BIND_BODY_GETTER(radius, cube.radius, py_newfloat)
+	BIND_BODY_GETTER(radius01, cube.radius01(), py_newfloat)
 	BIND_BODY_GETTER(chunk_index, chunk_index, py_newint)
+
+#undef BIND_BODY_GETTER
+#undef BIND_BODY_SETTER
+
+	py_bindmethod(t, "draw_chunk_bodies", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(5);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_int);
+		PY_CHECK_ARG_TYPE(2, tp_int);
+		PY_CHECK_ARG_TYPE(3, tp_int);
+		PY_CHECK_ARG_TYPE(4, tp_int);
+		int x = py_toint(&argv[1]);
+		int y = py_toint(&argv[2]);
+		int w = py_toint(&argv[3]);
+		int h = py_toint(&argv[4]);
+		Variant arr = self->draw_chunk_bodies(x, y, w, h);
+		pkpy::py_newvariant(py_retval(), &arr);
+		return true;
+	});
+
+	py_bindmethod(t, "draw_chunk_tiles", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(5);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_int);
+		PY_CHECK_ARG_TYPE(2, tp_int);
+		PY_CHECK_ARG_TYPE(3, tp_int);
+		PY_CHECK_ARG_TYPE(4, tp_int);
+		int x = py_toint(&argv[1]);
+		int y = py_toint(&argv[2]);
+		int w = py_toint(&argv[3]);
+		int h = py_toint(&argv[4]);
+		Variant arr = self->draw_chunk_tiles(x, y, w, h);
+		pkpy::py_newvariant(py_retval(), &arr);
+		return true;
+	});
 }
 
 void setup_space_module(const char *name) {
