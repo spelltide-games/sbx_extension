@@ -38,13 +38,12 @@ static void setup_Tilemap(py_GlobalRef mod) {
 		return true;
 	});
 
-#define BIND_INT_PROPERTY(__name, __getter)                 \
-	py_bindmethod(t, #__name, [](int argc, py_Ref argv) {   \
+#define BIND_INT_PROPERTY(__name, __getter) \
+	py_bindproperty(t, #__name, [](int argc, py_Ref argv) {   \
 		PY_CHECK_ARGC(1);                                   \
 		Tilemap *self = (Tilemap *)py_touserdata(&argv[0]); \
 		py_newint(py_retval(), self->__getter);             \
-		return true;                                        \
-	});
+		return true; }, NULL);
 
 	BIND_INT_PROPERTY(width, width())
 	BIND_INT_PROPERTY(height, height())
@@ -349,34 +348,42 @@ static void setup_Space(py_GlobalRef mod) {
 #undef BIND_BODY_SETTER
 
 	py_bindmethod(t, "draw_chunk_bodies", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(5);
+		PY_CHECK_ARGC(6);
 		Space *self = (Space *)py_touserdata(&argv[0]);
-		PY_CHECK_ARG_TYPE(1, tp_int);
+		Variant v = pkpy::py_tovariant(&argv[1]);
+		if (v.get_type() != Variant::CALLABLE) {
+			return TypeError("expected 'Callable'");
+		}
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		PY_CHECK_ARG_TYPE(3, tp_int);
 		PY_CHECK_ARG_TYPE(4, tp_int);
-		int x = py_toint(&argv[1]);
-		int y = py_toint(&argv[2]);
-		int w = py_toint(&argv[3]);
-		int h = py_toint(&argv[4]);
-		Variant arr = self->draw_chunk_bodies(x, y, w, h);
-		pkpy::py_newvariant(py_retval(), &arr);
+		PY_CHECK_ARG_TYPE(5, tp_int);
+		int x = py_toint(&argv[2]);
+		int y = py_toint(&argv[3]);
+		int w = py_toint(&argv[4]);
+		int h = py_toint(&argv[5]);
+		self->draw_chunk_bodies(v, x, y, w, h);
+		py_newnone(py_retval());
 		return true;
 	});
 
 	py_bindmethod(t, "draw_chunk_tiles", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(5);
+		PY_CHECK_ARGC(6);
 		Space *self = (Space *)py_touserdata(&argv[0]);
-		PY_CHECK_ARG_TYPE(1, tp_int);
+		Variant v = pkpy::py_tovariant(&argv[1]);
+		if (v.get_type() != Variant::CALLABLE) {
+			return TypeError("expected 'Callable'");
+		}
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		PY_CHECK_ARG_TYPE(3, tp_int);
 		PY_CHECK_ARG_TYPE(4, tp_int);
-		int x = py_toint(&argv[1]);
-		int y = py_toint(&argv[2]);
-		int w = py_toint(&argv[3]);
-		int h = py_toint(&argv[4]);
-		Variant arr = self->draw_chunk_tiles(x, y, w, h);
-		pkpy::py_newvariant(py_retval(), &arr);
+		PY_CHECK_ARG_TYPE(5, tp_int);
+		int x = py_toint(&argv[2]);
+		int y = py_toint(&argv[3]);
+		int w = py_toint(&argv[4]);
+		int h = py_toint(&argv[5]);
+		self->draw_chunk_tiles(v, x, y, w, h);
+		py_newnone(py_retval());
 		return true;
 	});
 }

@@ -62,8 +62,8 @@ void Space::broad_phase_query(const AABB &aabb, uint32_t layer_mask, uint32_t fl
 }
 
 void Space::update_body_chunk(BodyID bid) {
+	ERR_FAIL_COND(bid.type == BodyType::TILE);
 	Body *body = get_body(bid);
-	assert(body->type != BodyType::TILE);
 	int chunk_index = chunker.map_1d(body->position_xz());
 	if (body->chunk_index == chunk_index) {
 		return;
@@ -214,7 +214,7 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 			AABB a_core = a->cube.core;
 			AABB b_core = b->cube.core;
 			if (b->type == BodyType::TILE) {
-				b_core.move(Vector3(xzl.x + 0.5f, 0, xzl.z + 0.5f));
+				b_core.move(Vector3(xzl.x + 0.5f, 0, xzl.y + 0.5f));
 			}
 			torus_normalize_two_aabb(torus_size.x, torus_size.y, &a_core, &b_core);
 
@@ -349,11 +349,11 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 	}
 }
 
-PackedVector3Array Space::draw_body(BodyID bid, Vector3i xzl) {
+void Space::draw_body(Callable f_draw, BodyID bid, Vector3i xzl) {
 	Body *body = get_body(bid);
 	AABB core = body->cube.core;
 	if (body->type == BodyType::TILE) {
-		core.move(Vector3(xzl.x + 0.5f, 0, xzl.z + 0.5f));
+		core.move(Vector3(xzl.x + 0.5f, 0, xzl.y + 0.5f));
 	}
 
 	auto rr = [](const AABB &core, float radius, float t, int axis) {
@@ -376,6 +376,22 @@ PackedVector3Array Space::draw_body(BodyID bid, Vector3i xzl) {
 		float max_val = core.vmax[axis] + radius;
 		float curr_val = Math::lerp(min_val, max_val, t);
 
+		auto make_vec3 = [=](float val_axis, float val_u, float val_v) {
+			Vector3 vec(0, 0, 0);
+			vec[axis] = val_axis;
+			vec[u] = val_u;
+			vec[v] = val_v;
+			return vec;
+		};
+
+		if (radius == 0.0f) {
+			loop_points.append(make_vec3(curr_val, core.vmax[u], core.vmax[v]));
+			loop_points.append(make_vec3(curr_val, core.vmax[u], core.vmin[v]));
+			loop_points.append(make_vec3(curr_val, core.vmin[u], core.vmin[v]));
+			loop_points.append(make_vec3(curr_val, core.vmin[u], core.vmax[v]));
+			return loop_points;
+		}
+
 		// 圆角区域的深度 dy
 		float dy = 0.0;
 		if (curr_val < core.vmin[axis]) {
@@ -385,14 +401,6 @@ PackedVector3Array Space::draw_body(BodyID bid, Vector3i xzl) {
 		}
 
 		float r = Math::sqrt(Math::max<float>(0.0, radius * radius - dy * dy));
-
-		auto make_vec3 = [=](float val_axis, float val_u, float val_v) {
-			Vector3 vec(0, 0, 0);
-			vec[axis] = val_axis;
-			vec[u] = val_u;
-			vec[v] = val_v;
-			return vec;
-		};
 
 		const float PI = 3.14159265358979323846;
 
@@ -423,18 +431,15 @@ PackedVector3Array Space::draw_body(BodyID bid, Vector3i xzl) {
 		return loop_points;
 	};
 
-	PackedVector3Array points;
 	Vector3 aabb_size = body->cube.aabb().extent() * 2;
 	for (int axis = 0; axis <= 2; axis++) {
 		float t = body->cube.radius / aabb_size[axis];
-		points.append_array(rr(core, body->cube.radius, t, axis));
-		points.append_array(rr(core, body->cube.radius, 1 - t, axis));
+		f_draw.call(rr(core, body->cube.radius, t, axis));
+		f_draw.call(rr(core, body->cube.radius, 1 - t, axis));
 	}
-	return points;
 }
 
-PackedVector3Array Space::draw_chunk_bodies(int x, int y, int w, int h) {
-	PackedVector3Array points;
+void Space::draw_chunk_bodies(Callable f_draw, int x, int y, int w, int h) {
 	Vector2i chunk_pos(x, y);
 	Vector2i max_chunk_pos = chunk_pos + Vector2i(w, h);
 	max_chunk_pos.x = Math::min(max_chunk_pos.x, chunker.n_chunks_x);
@@ -444,16 +449,14 @@ PackedVector3Array Space::draw_chunk_bodies(int x, int y, int w, int h) {
 			int chunk_index = chunker.torus_2d_to_1d(Vector2i(cx, cz));
 			BodyID p = chunks[chunk_index];
 			while (p) {
-				points.append_array(draw_body(p, Vector3i(0, 0, 0)));
+				draw_body(f_draw, p, Vector3i(0, 0, 0));
 				p = get_body(p)->next;
 			}
 		}
 	}
-	return points;
 }
 
-PackedVector3Array Space::draw_chunk_tiles(int x, int y, int w, int h) {
-	PackedVector3Array points;
+void Space::draw_chunk_tiles(Callable f_draw, int x, int y, int w, int h) {
 	Vector2i chunk_pos(x, y);
 	Vector2i max_chunk_pos = chunk_pos + Vector2i(w, h);
 	max_chunk_pos.x = Math::min(max_chunk_pos.x, chunker.n_chunks_x);
@@ -468,14 +471,13 @@ PackedVector3Array Space::draw_chunk_tiles(int x, int y, int w, int h) {
 					for (int l = 0; l < (int)TileLayer::COUNT; ++l) {
 						BodyID *bid = tile_body_registry.getptr(tile->data[l]);
 						if (bid) {
-							points.append_array(draw_body(*bid, Vector3i(i, j, l)));
+							draw_body(f_draw, *bid, Vector3i(i, j, l));
 						}
 					}
 				}
 			}
 		}
 	}
-	return points;
 }
 
 } // namespace sbx

@@ -1,6 +1,6 @@
 from typing import Self, Literal, Protocol
 from vmath import vec3, vec3i, vec4i
-from godot import PackedVector3Array
+from godot import PackedVector3Array, Callable
 
 TileID = int
 
@@ -83,6 +83,6 @@ class Space:
     def body_get_chunk_index(self, bid: BodyID) -> int: ...
 
     # draw
-    def draw_chunk_bodies(self, x: int, y: int, w: int, h: int) -> PackedVector3Array: ...
-    def draw_chunk_tiles(self, x: int, y: int, w: int, h: int) -> PackedVector3Array: ...
+    def draw_chunk_bodies(self, f_draw: Callable, x: int, y: int, w: int, h: int) -> PackedVector3Array: ...
+    def draw_chunk_tiles(self, f_draw: Callable, x: int, y: int, w: int, h: int) -> PackedVector3Array: ...
 
