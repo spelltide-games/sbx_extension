@@ -16,7 +16,8 @@ using namespace godot;
 
 const float FLOAT_MAX = 1e9f;
 const float FLOAT_EPS = 0.001953125f; // 1/512
-const float LINE_IS_POINT_THRESHOLD = 0.015625f; // 1/64
+const float LINEAR_SLOP = 0.015625f; // 1/64
+const float SPECULATIVE_DISTANCE = 4 * LINEAR_SLOP; // 1/16
 const float PENETRATION_CORRECTION_PERCENTAGE = 0.2f;
 const float PENETRATION_SLOP = FLOAT_EPS;
 
@@ -54,7 +55,8 @@ static inline int posmod(int x, int m) {
 }
 
 static inline double posmodf(double x, double m) {
-	double r = dmath_fmod(x, m);
+	assert(m > 0);
+	double r = dmath_fmod(x, m - FLOAT_EPS);
 	return r >= 0 ? r : r + m;
 }
 
@@ -83,6 +85,12 @@ struct AABB {
 	Vector3 extent() const { return size() * 0.5f; }
 	Vector3 size() const { return vmax - vmin; }
 	Vector2 size_xz() const { return Vector2(vmax.x - vmin.x, vmax.z - vmin.z); }
+
+	void grow(float amount) {
+		Vector3 offset(amount, amount, amount);
+		vmin -= offset;
+		vmax += offset;
+	}
 
 	bool intersects(const AABB &other) const {
 		return (other.vmin.x < vmax.x) && (vmin.x < other.vmax.x) &&

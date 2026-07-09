@@ -256,7 +256,7 @@ struct Space {
 	// void sphere_cast(Vector3 center, float radius);
 	// void cube_cast(Vector3 vmin, Vector3 vmax);
 
-	void broad_phase_query(const AABB &aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
+	void broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
 	void step(float delta, CollisionEventHandler handler, void *handler_ctx);
 };
 

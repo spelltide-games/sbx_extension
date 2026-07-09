@@ -3,7 +3,9 @@
 
 namespace sbx {
 
-void Space::broad_phase_query(const AABB &aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
+void Space::broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
+	// aabb.grow(SPECULATIVE_DISTANCE);  // BUG??
+
 	if (flags & (uint32_t)BroadPhaseFlags::INCLUDE_TILES) {
 #define MAX_C_PER_D 64
 		int buf_x[MAX_C_PER_D];

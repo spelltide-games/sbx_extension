@@ -7,7 +7,7 @@ namespace sbx {
 
 Vector3 project_point_on_line(Vector3 point, Line line) {
 	Vector3 d = line[1] - line[0];
-	if (fabs(d.x) < LINE_IS_POINT_THRESHOLD && fabs(d.y) < LINE_IS_POINT_THRESHOLD && fabs(d.z) < LINE_IS_POINT_THRESHOLD) {
+	if (fabs(d.x) < LINEAR_SLOP && fabs(d.y) < LINEAR_SLOP && fabs(d.z) < LINEAR_SLOP) {
 		return line[0];
 	}
 	Vector3 v = point - line[0];
