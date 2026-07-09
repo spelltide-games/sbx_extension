@@ -181,12 +181,13 @@ static void collision_event_handler(const CollisionEvent &ev, void *space) {
 	py_newvec3i(py_pushtmp(), c11_vec3i{ { ev.xzl.x, ev.xzl.y, ev.xzl.z } });
 	if (ev.type == CollisionEvent::Type::ADDED) {
 		py_newvec3(py_pushtmp(), c11_vec3{ { ev.normal.x, ev.normal.y, ev.normal.z } });
-		if (py_vectorcall(5, 0))
-			return;
-	} else {
 		if (py_vectorcall(4, 0))
 			return;
+	} else {
+		if (py_vectorcall(3, 0))
+			return;
 	}
+	print_error("collision_event_handler: exception occurred in callback");
 	pkpy::log_python_error_and_clearexc(p0);
 }
 

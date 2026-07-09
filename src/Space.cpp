@@ -193,9 +193,10 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 
 		std::pair<Vector2i, BodyID> ctx_pair(Vector2i(width(), height()), a_bid);
 
-		if (!a->is_moving()) {
-			continue;
-		}
+		// this causes bug for curr_pairs
+		// if (!a->is_moving()) {
+		// 	continue;
+		// }
 
 		uint32_t flags = (uint32_t)BroadPhaseFlags::ALL;
 		broad_phase_query(a->cube.aabb(), layer_masks[a->layer], flags, (void *)&ctx_pair, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
@@ -455,13 +456,15 @@ void Space::draw_body(PackedVector3Array *p_array, BodyID bid, Vector3i xzl) {
 	}
 }
 
-void Space::draw_chunk_bodies(Ref<ArrayMesh> mesh, int x, int y, int w, int h) {
+void Space::draw_chunk_bodies(Ref<ArrayMesh> mesh, bool include_tiles, int x, int y, int w, int h) {
 	Vector2i chunk_pos(x, y);
 	Vector2i max_chunk_pos = chunk_pos + Vector2i(w, h);
 	max_chunk_pos.x = Math::min(max_chunk_pos.x, chunker.n_chunks_x);
 	max_chunk_pos.y = Math::min(max_chunk_pos.y, chunker.n_chunks_y);
-	PackedVector3Array lines_tile;
-	PackedVector3Array lines_body;
+	static PackedVector3Array lines_tile;
+	static PackedVector3Array lines_body;
+	lines_tile.clear();
+	lines_body.clear();
 	for (int cx = chunk_pos.x; cx < max_chunk_pos.x; ++cx) {
 		for (int cz = chunk_pos.y; cz < max_chunk_pos.y; ++cz) {
 			// bodies
@@ -472,15 +475,17 @@ void Space::draw_chunk_bodies(Ref<ArrayMesh> mesh, int x, int y, int w, int h) {
 				p = get_body(p)->next;
 			}
 			// tiles
-			int x_, y_, w_, h_;
-			chunker.get_slice(Vector2i(cx, cz), &x_, &y_, &w_, &h_);
-			for (int i = x_; i < x_ + w_; ++i) {
-				for (int j = y_; j < y_ + h_; ++j) {
-					Tile *tile = tilemap.get(i, j);
-					for (int l = 0; l < (int)TileLayer::COUNT; ++l) {
-						BodyID *bid = tile_body_registry.getptr(tile->data[l]);
-						if (bid) {
-							draw_body(&lines_tile, *bid, Vector3i(i, j, l));
+			if (include_tiles) {
+				int x_, y_, w_, h_;
+				chunker.get_slice(Vector2i(cx, cz), &x_, &y_, &w_, &h_);
+				for (int i = x_; i < x_ + w_; ++i) {
+					for (int j = y_; j < y_ + h_; ++j) {
+						Tile *tile = tilemap.get(i, j);
+						for (int l = 0; l < (int)TileLayer::COUNT; ++l) {
+							BodyID *bid = tile_body_registry.getptr(tile->data[l]);
+							if (bid) {
+								draw_body(&lines_tile, *bid, Vector3i(i, j, l));
+							}
 						}
 					}
 				}
@@ -490,10 +495,16 @@ void Space::draw_chunk_bodies(Ref<ArrayMesh> mesh, int x, int y, int w, int h) {
 
 	Array surface;
 	surface.resize(Mesh::ARRAY_MAX);
-	surface[Mesh::ARRAY_VERTEX] = lines_tile;
-	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, surface);
-	surface[Mesh::ARRAY_VERTEX] = lines_body;
-	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, surface);
+	if (include_tiles) {
+		surface[Mesh::ARRAY_VERTEX] = lines_tile;
+		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, surface);
+		surface[Mesh::ARRAY_VERTEX] = lines_body;
+		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, surface);
+	} else {
+		assert(mesh->get_surface_count() == 1);
+		surface[Mesh::ARRAY_VERTEX] = lines_body;
+		mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, surface);
+	}
 }
 
 } // namespace sbx

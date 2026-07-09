@@ -240,7 +240,7 @@ struct Space {
 	void remove_body_chunk(BodyID bid);
 
 	void draw_body(PackedVector3Array* p_array, BodyID bid, Vector3i xzl);
-	void draw_chunk_bodies(Ref<ArrayMesh> mesh, int x, int y, int w, int h);
+	void draw_chunk_bodies(Ref<ArrayMesh> mesh, bool include_tiles, int x, int y, int w, int h);
 
 	// void point_cast(Vector3 point);
 	// void ray_cast(Vector3 from, Vector3 to, float max_distance);

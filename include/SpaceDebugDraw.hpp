@@ -13,6 +13,7 @@ class SpaceDebugDraw : public MeshInstance3D {
 	GDCLASS(SpaceDebugDraw, MeshInstance3D)
 
 	Ref<ArrayMesh> mesh;
+
 	Color tile_color = Color(0.0, 1, 0.0, 0.5);
 	Color body_color = Color(1, 1, 1, 0.8);
 
@@ -61,21 +62,46 @@ void fragment() {
 		body_color = color;
 	}
 
-	void rebuild(int64_t p_space, int x, int y, int w, int h) {
+	void rebuild(int64_t p_space, bool include_tiles, int x, int y, int w, int h) {
 		if (!mesh.is_valid()) {
 			mesh.instantiate();
 		}
-		mesh->clear_surfaces();
+		if (include_tiles) {
+			mesh->clear_surfaces();
+		} else {
+			mesh->surface_remove(1);
+		}
 		Space *space = reinterpret_cast<Space *>(p_space);
-		space->draw_chunk_bodies(mesh, x, y, w, h);
-		set_mesh(mesh);
-		set_surface_override_material(0, create_with_color(tile_color));
+		space->draw_chunk_bodies(mesh, include_tiles, x, y, w, h);
+
+		if (get_mesh() != mesh) {
+			set_mesh(mesh);
+		}
+
+		if (include_tiles) {
+			set_surface_override_material(0, create_with_color(tile_color));
+		}
 		set_surface_override_material(1, create_with_color(body_color));
+	}
+
+	void _notification(int p_what) {
+		switch (p_what) {
+			case NOTIFICATION_EDITOR_PRE_SAVE:
+				set_mesh(nullptr);
+				break;
+			case NOTIFICATION_EDITOR_POST_SAVE:
+				if (mesh.is_valid()) {
+					set_mesh(mesh);
+				}
+				break;
+			default:
+				break;
+		}
 	}
 
 protected:
 	static void _bind_methods() {
-		ClassDB::bind_method(D_METHOD("rebuild", "p_space", "x", "y", "w", "h"), &SpaceDebugDraw::rebuild);
+		ClassDB::bind_method(D_METHOD("rebuild", "p_space", "include_tiles", "x", "y", "w", "h"), &SpaceDebugDraw::rebuild);
 		ClassDB::bind_method(D_METHOD("set_tile_color", "color"), &SpaceDebugDraw::set_tile_color);
 		ClassDB::bind_method(D_METHOD("get_tile_color"), &SpaceDebugDraw::get_tile_color);
 		ClassDB::bind_method(D_METHOD("set_body_color", "color"), &SpaceDebugDraw::set_body_color);
