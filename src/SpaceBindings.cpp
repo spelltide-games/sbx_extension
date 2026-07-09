@@ -162,6 +162,42 @@ static void setup_BodyID(py_GlobalRef mod) {
 		BodyID *self = (BodyID *)py_totrivial(argv);
 		py_newint(py_retval(), self->id);
 		return true; }, NULL);
+
+	py_bindmethod(t, "__hash__", [](int argc, py_Ref argv) {
+		BodyID *self = (BodyID *)py_totrivial(argv);
+		py_newint(py_retval(), (py_i64)self->hash());
+		return true;
+	});
+
+	py_bindmethod(t, "__eq__", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(2);
+		BodyID *self = (BodyID *)py_totrivial(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, get_BodyID_type());
+		BodyID *other = (BodyID *)py_totrivial(&argv[1]);
+		py_newbool(py_retval(), *self == *other);
+		return true;
+	});
+
+	py_bindmethod(t, "__ne__", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(2);
+		BodyID *self = (BodyID *)py_totrivial(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, get_BodyID_type());
+		BodyID *other = (BodyID *)py_totrivial(&argv[1]);
+		py_newbool(py_retval(), *self != *other);
+		return true;
+	});
+
+	py_bindmethod(t, "__repr__", [](int argc, py_Ref argv) {
+		BodyID *self = (BodyID *)py_totrivial(argv);
+		String repr;
+		if (self->is_valid) {
+			repr = String("BodyID(type={0}, id={1})").format(Array::make((int)self->type, self->id));
+		} else {
+			repr = String("BodyID(INVALID)");
+		}
+		py_newstr(py_retval(), repr.utf8().get_data());
+		return true;
+	});
 }
 
 static void collision_event_handler(const CollisionEvent &ev, void *space) {

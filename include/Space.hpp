@@ -46,6 +46,14 @@ struct BodyID {
 		return (id << 4) + (uint8_t)type + 1;
 	}
 
+	bool operator==(const BodyID &other) const {
+		return type == other.type && is_valid == other.is_valid && id == other.id;
+	}
+
+	bool operator!=(const BodyID &other) const {
+		return !(*this == other);
+	}
+
 	struct Hasher {
 		static uint32_t hash(const BodyID &bid) {
 			return (uint32_t)bid.hash();
@@ -68,11 +76,11 @@ struct Body {
 	Vector3 velocity;
 	Vector3 instant_velocity;
 
-	Body(BodyType type, Vector3 extent, float radius, float mass) :
+	Body(BodyType type, Vector3 aabb_extent, float radius01, float mass) :
 			type(type),
 			layer(0),
 			is_trigger(false),
-			cube(Vector3(0, 0, 0), extent, radius),
+			cube(Vector3(0, 0, 0), aabb_extent, radius01),
 			mass(mass),
 			chunk_index(-1),
 			prev(),
@@ -227,7 +235,7 @@ struct Space {
 	}
 
 	void add_curr_pair(BodyID a, BodyID b, Vector3i xzl, Vector3 normal, float max_sep);
-	BodyID create_body(BodyType type, Vector3 extent, float radius);
+	BodyID create_body(BodyType type, Vector3 extent, float radius01);
 	void register_tile_body(TileID tile_id, BodyID bid) {
 		ERR_FAIL_COND(bid.type != BodyType::TILE);
 		ERR_FAIL_COND(tile_body_registry.has(tile_id));

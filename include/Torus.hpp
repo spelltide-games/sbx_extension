@@ -35,6 +35,14 @@ struct UnitVector3 {
 		v[axis] = (float)sign;
 		return v;
 	}
+
+	bool operator==(const UnitVector3 &other) const {
+		return axis == other.axis && sign == other.sign;
+	}
+
+	bool operator!=(const UnitVector3 &other) const {
+		return axis != other.axis || sign != other.sign;
+	}
 };
 
 Vector3 project_point_on_line(Vector3 point, Line line);
@@ -58,6 +66,7 @@ struct AAFace {
 	void get_ccw_points(Vector3 p_points[4]) const;
 	void get_parallel_edges(int axis, Line p_edges[2]) const;
 	Vector3 find_closest_distance(const AAFace &other) const;
+	String repr() const;
 };
 
 struct AABB {

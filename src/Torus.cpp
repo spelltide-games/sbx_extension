@@ -1,4 +1,6 @@
 #include "Torus.hpp"
+#include "godot_cpp/variant/array.hpp"
+#include "godot_cpp/variant/variant.hpp"
 #include <cassert>
 
 namespace sbx {
@@ -99,8 +101,19 @@ void AAFace::get_parallel_edges(int axis, Line p_edges[2]) const {
 }
 
 Vector3 AAFace::find_closest_distance(const AAFace &other) const {
+	assert(normal == other.normal.flip());
 	float min_dist_squared = FLOAT_MAX;
 	Vector3 min_dir;
+
+	int a0 = (normal.axis + 1) % 3;
+	int a1 = (normal.axis + 2) % 3;
+	bool has_2d_overlap = (other.vmin[a0] < vmax[a0]) && (vmin[a0] < other.vmax[a0]) &&
+			(other.vmin[a1] < vmax[a1]) && (vmin[a1] < other.vmax[a1]);
+	if (has_2d_overlap) {
+		float dist = other.vmin[normal.axis] - vmin[normal.axis];
+		min_dir = other.normal.to_vec3() * fabs(dist);
+		return min_dir;
+	}
 
 	// a -----
 	//		^
@@ -117,19 +130,32 @@ Vector3 AAFace::find_closest_distance(const AAFace &other) const {
 		for (int i = 0; i < 2; i++) {
 			for (int j = 0; j < 2; j++) {
 				for (int k = 0; k < 2; k++) {
+					// a -> b
 					Vector3 vert_a = edges_a[i][k];
 					Vector3 proj_b = project_point_on_line(vert_a, edges_b[j]);
 					Vector3 dir = vert_a - proj_b;
 					if (dir.length_squared() < min_dist_squared) {
 						min_dist_squared = dir.length_squared();
 						min_dir = dir;
-						// print_line("vert_a: " + vert_a + ", proj_b: " + proj_b);
+					}
+					// b -> a
+					Vector3 vert_b = edges_b[i][k];
+					Vector3 proj_a = project_point_on_line(vert_b, edges_a[j]);
+					dir = proj_a - vert_b;
+					if (dir.length_squared() < min_dist_squared) {
+						min_dist_squared = dir.length_squared();
+						min_dir = dir;
 					}
 				}
 			}
 		}
 	}
 	return min_dir;
+}
+
+String AAFace::repr() const {
+	return String("AAFace(normal: {0}, vmin: {1}, vmax: {2})")
+			.format(Array::make(normal.to_vec3(), vmin, vmax));
 }
 
 AAFace AABB::get_face(UnitVector3 normal) const {

@@ -221,17 +221,20 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 
 			UnitVector3 n;
 			float max_sep = a_core.find_max_separation(b_core, &n);
+			// print_line("max_sep: " + rtos(max_sep) + ", n: " + n.to_vec3());
 
 			if (max_sep < 0) {
 				space->add_curr_pair(a_bid, candidate, xzl, n.to_vec3(), max_sep);
-				// print_line("max_sep: " + rtos(max_sep) + ", n: " + n.to_vec3());
 			} else {
 				AAFace a_face = a_core.get_face(n.flip());
 				AAFace b_face = b_core.get_face(n);
+				// print_line("a_face: " + a_face.repr());
+				// print_line("b_face: " + b_face.repr());
 
 				Vector3 n_alt = a_face.find_closest_distance(b_face);
 				float n_alt_length = n_alt.length();
 				max_sep = n_alt_length - a->cube.radius - b->cube.radius;
+				// print_line("n_alt_length: " + rtos(n_alt_length) + ", max_sep: " + rtos(max_sep));
 
 				if (max_sep < 0) {
 					if (n_alt_length > FLOAT_EPS) {
