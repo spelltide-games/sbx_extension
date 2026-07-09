@@ -1,6 +1,7 @@
 #pragma once
 
 #include "godot_cpp/templates/hash_map.hpp"
+#include "godot_cpp/classes/array_mesh.hpp"
 #include <cassert>
 
 #include "Tilemap.hpp"
@@ -238,9 +239,8 @@ struct Space {
 	void update_body_chunk(BodyID bid);
 	void remove_body_chunk(BodyID bid);
 
-	void draw_body(Callable f_draw, BodyID bid, Vector3i xzl);
-	void draw_chunk_bodies(Callable f_draw, int x, int y, int w, int h);
-	void draw_chunk_tiles(Callable f_draw, int x, int y, int w, int h);
+	void draw_body(PackedVector3Array* p_array, BodyID bid, Vector3i xzl);
+	void draw_chunk_bodies(Ref<ArrayMesh> mesh, int x, int y, int w, int h);
 
 	// void point_cast(Vector3 point);
 	// void ray_cast(Vector3 from, Vector3 to, float max_distance);

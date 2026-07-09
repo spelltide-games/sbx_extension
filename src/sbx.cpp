@@ -1,5 +1,6 @@
 #include "sbx.hpp"
 #include "Space.hpp"
+#include "SpaceDebugDraw.hpp"
 #include "LevelDB.hpp"
 #include "LockstepGoNetwork.hpp"
 #include "MessagePack.hpp"
@@ -14,6 +15,7 @@ using namespace godot;
 
 void setup_sbx_godot_classes() {
 	ClassDB::register_class<MessagePack>();
+	ClassDB::register_class<SpaceDebugDraw>();
 }
 
 void setup_sbx_python_modules() {

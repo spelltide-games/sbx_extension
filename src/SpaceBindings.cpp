@@ -347,43 +347,10 @@ static void setup_Space(py_GlobalRef mod) {
 #undef BIND_BODY_GETTER
 #undef BIND_BODY_SETTER
 
-	py_bindmethod(t, "draw_chunk_bodies", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(6);
+	py_bindmethod(t, "get_ptr", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(1);
 		Space *self = (Space *)py_touserdata(&argv[0]);
-		Variant v = pkpy::py_tovariant(&argv[1]);
-		if (v.get_type() != Variant::CALLABLE) {
-			return TypeError("expected 'Callable'");
-		}
-		PY_CHECK_ARG_TYPE(2, tp_int);
-		PY_CHECK_ARG_TYPE(3, tp_int);
-		PY_CHECK_ARG_TYPE(4, tp_int);
-		PY_CHECK_ARG_TYPE(5, tp_int);
-		int x = py_toint(&argv[2]);
-		int y = py_toint(&argv[3]);
-		int w = py_toint(&argv[4]);
-		int h = py_toint(&argv[5]);
-		self->draw_chunk_bodies(v, x, y, w, h);
-		py_newnone(py_retval());
-		return true;
-	});
-
-	py_bindmethod(t, "draw_chunk_tiles", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(6);
-		Space *self = (Space *)py_touserdata(&argv[0]);
-		Variant v = pkpy::py_tovariant(&argv[1]);
-		if (v.get_type() != Variant::CALLABLE) {
-			return TypeError("expected 'Callable'");
-		}
-		PY_CHECK_ARG_TYPE(2, tp_int);
-		PY_CHECK_ARG_TYPE(3, tp_int);
-		PY_CHECK_ARG_TYPE(4, tp_int);
-		PY_CHECK_ARG_TYPE(5, tp_int);
-		int x = py_toint(&argv[2]);
-		int y = py_toint(&argv[3]);
-		int w = py_toint(&argv[4]);
-		int h = py_toint(&argv[5]);
-		self->draw_chunk_tiles(v, x, y, w, h);
-		py_newnone(py_retval());
+		py_newint(py_retval(), (intptr_t)self);
 		return true;
 	});
 }

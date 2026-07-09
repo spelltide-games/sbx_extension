@@ -349,16 +349,32 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 	}
 }
 
-void Space::draw_body(Callable f_draw, BodyID bid, Vector3i xzl) {
+static void f_draw(Ref<ArrayMesh> mesh, const PackedVector3Array &points, Color color) {
+	Array surface;
+	surface.resize(Mesh::ARRAY_MAX);
+	surface[Mesh::ARRAY_VERTEX] = points;
+	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINE_STRIP, surface);
+}
+
+void Space::draw_body(PackedVector3Array *p_array, BodyID bid, Vector3i xzl) {
 	Body *body = get_body(bid);
 	AABB core = body->cube.core;
 	if (body->type == BodyType::TILE) {
 		core.move(Vector3(xzl.x + 0.5f, 0, xzl.y + 0.5f));
 	}
 
+	auto add_as_lines = [](PackedVector3Array *p_array, PackedVector3Array points) {
+		for (int i = 0; i < points.size(); ++i) {
+			Vector3 p0 = points[i];
+			Vector3 p1 = points[(i + 1) % points.size()];
+			p_array->append(p0);
+			p_array->append(p1);
+		}
+	};
+
 	auto rr = [](const AABB &core, float radius, float t, int axis) {
 		const int corner_res = 8;
-		PackedVector3Array loop_points;
+		PackedVector3Array points;
 		int u;
 		int v;
 		if (axis == 0) { // 法线为X轴
@@ -385,11 +401,11 @@ void Space::draw_body(Callable f_draw, BodyID bid, Vector3i xzl) {
 		};
 
 		if (radius == 0.0f) {
-			loop_points.append(make_vec3(curr_val, core.vmax[u], core.vmax[v]));
-			loop_points.append(make_vec3(curr_val, core.vmax[u], core.vmin[v]));
-			loop_points.append(make_vec3(curr_val, core.vmin[u], core.vmin[v]));
-			loop_points.append(make_vec3(curr_val, core.vmin[u], core.vmax[v]));
-			return loop_points;
+			points.append(make_vec3(curr_val, core.vmax[u], core.vmax[v]));
+			points.append(make_vec3(curr_val, core.vmax[u], core.vmin[v]));
+			points.append(make_vec3(curr_val, core.vmin[u], core.vmin[v]));
+			points.append(make_vec3(curr_val, core.vmin[u], core.vmax[v]));
+			return points;
 		}
 
 		// 圆角区域的深度 dy
@@ -407,62 +423,55 @@ void Space::draw_body(Callable f_draw, BodyID bid, Vector3i xzl) {
 		// 第一象限 (+u, +v)
 		for (int j = 0; j <= corner_res; j++) {
 			float ang = float(j) / corner_res * (PI / 2.0);
-			loop_points.append(make_vec3(curr_val, core.vmax[u] + r * Math::sin(ang), core.vmax[v] + r * Math::cos(ang)));
+			points.append(make_vec3(curr_val, core.vmax[u] + r * Math::sin(ang), core.vmax[v] + r * Math::cos(ang)));
 		}
 
 		// 第二象限 (+u, -v)
 		for (int j = 0; j <= corner_res; j++) {
 			float ang = PI / 2.0 + float(j) / corner_res * (PI / 2.0);
-			loop_points.append(make_vec3(curr_val, core.vmax[u] + r * Math::sin(ang), core.vmin[v] + r * Math::cos(ang)));
+			points.append(make_vec3(curr_val, core.vmax[u] + r * Math::sin(ang), core.vmin[v] + r * Math::cos(ang)));
 		}
 
 		// 第三象限 (-u, -v)
 		for (int j = 0; j <= corner_res; j++) {
 			float ang = PI + float(j) / corner_res * (PI / 2.0);
-			loop_points.append(make_vec3(curr_val, core.vmin[u] + r * Math::sin(ang), core.vmin[v] + r * Math::cos(ang)));
+			points.append(make_vec3(curr_val, core.vmin[u] + r * Math::sin(ang), core.vmin[v] + r * Math::cos(ang)));
 		}
 
 		// 第四象限 (-u, +v)
 		for (int j = 0; j <= corner_res; j++) {
 			float ang = 3.0 * PI / 2.0 + float(j) / corner_res * (PI / 2.0);
-			loop_points.append(make_vec3(curr_val, core.vmin[u] + r * Math::sin(ang), core.vmax[v] + r * Math::cos(ang)));
+			points.append(make_vec3(curr_val, core.vmin[u] + r * Math::sin(ang), core.vmax[v] + r * Math::cos(ang)));
 		}
 
-		return loop_points;
+		return points;
 	};
 
 	Vector3 aabb_size = body->cube.aabb().extent() * 2;
 	for (int axis = 0; axis <= 2; axis++) {
 		float t = body->cube.radius / aabb_size[axis];
-		f_draw.call(rr(core, body->cube.radius, t, axis));
-		f_draw.call(rr(core, body->cube.radius, 1 - t, axis));
+		add_as_lines(p_array, rr(core, body->cube.radius, t, axis));
+		add_as_lines(p_array, rr(core, body->cube.radius, 1 - t, axis));
 	}
 }
 
-void Space::draw_chunk_bodies(Callable f_draw, int x, int y, int w, int h) {
+void Space::draw_chunk_bodies(Ref<ArrayMesh> mesh, int x, int y, int w, int h) {
 	Vector2i chunk_pos(x, y);
 	Vector2i max_chunk_pos = chunk_pos + Vector2i(w, h);
 	max_chunk_pos.x = Math::min(max_chunk_pos.x, chunker.n_chunks_x);
 	max_chunk_pos.y = Math::min(max_chunk_pos.y, chunker.n_chunks_y);
+	PackedVector3Array lines_tile;
+	PackedVector3Array lines_body;
 	for (int cx = chunk_pos.x; cx < max_chunk_pos.x; ++cx) {
 		for (int cz = chunk_pos.y; cz < max_chunk_pos.y; ++cz) {
+			// bodies
 			int chunk_index = chunker.torus_2d_to_1d(Vector2i(cx, cz));
 			BodyID p = chunks[chunk_index];
 			while (p) {
-				draw_body(f_draw, p, Vector3i(0, 0, 0));
+				draw_body(&lines_body, p, Vector3i(0, 0, 0));
 				p = get_body(p)->next;
 			}
-		}
-	}
-}
-
-void Space::draw_chunk_tiles(Callable f_draw, int x, int y, int w, int h) {
-	Vector2i chunk_pos(x, y);
-	Vector2i max_chunk_pos = chunk_pos + Vector2i(w, h);
-	max_chunk_pos.x = Math::min(max_chunk_pos.x, chunker.n_chunks_x);
-	max_chunk_pos.y = Math::min(max_chunk_pos.y, chunker.n_chunks_y);
-	for (int cx = chunk_pos.x; cx < max_chunk_pos.x; ++cx) {
-		for (int cz = chunk_pos.y; cz < max_chunk_pos.y; ++cz) {
+			// tiles
 			int x_, y_, w_, h_;
 			chunker.get_slice(Vector2i(cx, cz), &x_, &y_, &w_, &h_);
 			for (int i = x_; i < x_ + w_; ++i) {
@@ -471,13 +480,20 @@ void Space::draw_chunk_tiles(Callable f_draw, int x, int y, int w, int h) {
 					for (int l = 0; l < (int)TileLayer::COUNT; ++l) {
 						BodyID *bid = tile_body_registry.getptr(tile->data[l]);
 						if (bid) {
-							draw_body(f_draw, *bid, Vector3i(i, j, l));
+							draw_body(&lines_tile, *bid, Vector3i(i, j, l));
 						}
 					}
 				}
 			}
 		}
 	}
+
+	Array surface;
+	surface.resize(Mesh::ARRAY_MAX);
+	surface[Mesh::ARRAY_VERTEX] = lines_tile;
+	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, surface);
+	surface[Mesh::ARRAY_VERTEX] = lines_body;
+	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINES, surface);
 }
 
 } // namespace sbx
