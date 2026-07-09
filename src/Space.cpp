@@ -353,13 +353,6 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 	}
 }
 
-static void f_draw(Ref<ArrayMesh> mesh, const PackedVector3Array &points, Color color) {
-	Array surface;
-	surface.resize(Mesh::ARRAY_MAX);
-	surface[Mesh::ARRAY_VERTEX] = points;
-	mesh->add_surface_from_arrays(Mesh::PRIMITIVE_LINE_STRIP, surface);
-}
-
 void Space::draw_body(PackedVector3Array *p_array, BodyID bid, Vector3i xzl) {
 	Body *body = get_body(bid);
 	AABB core = body->cube.core;
