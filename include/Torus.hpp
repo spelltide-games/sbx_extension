@@ -53,7 +53,7 @@ struct AABB {
 		vmax += offset;
 	}
 
-	bool intersects(const AABB &other) const {
+	bool _intersects(const AABB &other) const {
 		return (other.vmin.x < vmax.x) && (vmin.x < other.vmax.x) &&
 				(other.vmin.y < vmax.y) && (vmin.y < other.vmax.y) &&
 				(other.vmin.z < vmax.z) && (vmin.z < other.vmax.z);
@@ -157,5 +157,6 @@ struct Chunker {
 
 int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int *out, int out_size);
 void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b);
+bool torus_aabb_intersects(AABB a, AABB b, int width, int height);
 
 } // namespace sbx

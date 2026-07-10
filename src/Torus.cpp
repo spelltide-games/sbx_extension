@@ -56,6 +56,11 @@ void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aab
 	p_aabb_b->set_position(rel);
 }
 
+bool torus_aabb_intersects(AABB a, AABB b, int width, int height) {
+	torus_normalize_two_aabb(width, height, &a, &b);
+	return a._intersects(b);
+}
+
 float AABB::find_max_separation(const AABB &other, Vector3 *p_reference_normal) const {
 	float sep_x1 = other.vmin.x - vmax.x;
 	float sep_x2 = vmin.x - other.vmax.x;

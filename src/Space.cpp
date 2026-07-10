@@ -22,10 +22,12 @@ void Space::broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, vo
 		assert(n_buf_x <= MAX_C_PER_D);
 		assert(n_buf_z <= MAX_C_PER_D);
 
+		// print_line("---");
 		for (int i = 0; i < n_buf_x; ++i) {
 			for (int j = 0; j < n_buf_z; ++j) {
 				int x = buf_x[i];
 				int z = buf_z[j];
+				// print_line(String("check tile: {0}, {1}").format(Array::make(x, z)));
 				Tile *tile = tilemap.get(x, z);
 				Vector3 offset_xz(x + 0.5f, 0, z + 0.5f);
 				for (int l = 0; l < (int)TileLayer::COUNT; ++l) {
@@ -36,7 +38,7 @@ void Space::broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, vo
 						if (layer_mask & (1U << candidate->layer)) {
 							AABB new_aabb = candidate->cube.aabb();
 							new_aabb.move(offset_xz);
-							if (aabb.intersects(new_aabb)) {
+							if (torus_aabb_intersects(aabb, new_aabb, width(), height())) {
 								callback(this, *bid, Vector3i(x, z, l), ctx);
 							}
 						}
@@ -56,7 +58,7 @@ void Space::broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, vo
 				while (p) {
 					Body *candidate = get_body(p);
 					if (layer_mask & (1U << candidate->layer)) {
-						if (aabb.intersects(candidate->cube.aabb())) {
+						if (torus_aabb_intersects(aabb, candidate->cube.aabb(), width(), height())) {
 							callback(this, p, Vector3i(0, 0, 0), ctx);
 						}
 					}
@@ -277,7 +279,8 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		Vector3 v_bias(0, 0, 0);
 		if (info.max_sep < 0) {
 			Vector3 correction = n * (-info.max_sep + LINEAR_SLOP);
-			correction *= PENETRATION_CORRECTION_PERCENTAGE;
+			float scale = delta / (1 / 60.0f);
+			correction *= PENETRATION_CORRECTION_PERCENTAGE * scale;
 			v_bias = correction / delta;
 		}
 
