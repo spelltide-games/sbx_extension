@@ -48,12 +48,12 @@ void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aab
 	const double w = (double)width;
 	const double h = (double)height;
 
-	Vector2 rel_xz = p_aabb_b->position_xz() - p_aabb_a->position_xz();
-	rel_xz.x = posmodf(rel_xz.x + 0.5 * w, w) - 0.5 * w;
-	rel_xz.y = posmodf(rel_xz.y + 0.5 * h, h) - 0.5 * h;
+	Vector3 rel = p_aabb_b->position() - p_aabb_a->position();
+	rel.x = posmodf(rel.x + 0.5 * w, w) - 0.5 * w;
+	rel.z = posmodf(rel.z + 0.5 * h, h) - 0.5 * h;
 
 	p_aabb_a->set_position(Vector3(0, 0, 0));
-	p_aabb_b->set_position(Vector3(rel_xz.x, 0, rel_xz.y));
+	p_aabb_b->set_position(rel);
 }
 
 float AABB::find_max_separation(const AABB &other, Vector3 *p_reference_normal) const {

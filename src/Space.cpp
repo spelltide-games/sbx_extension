@@ -4,7 +4,7 @@
 namespace sbx {
 
 void Space::broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
-	// aabb.grow(SPECULATIVE_DISTANCE);
+	aabb.grow(SPECULATIVE_DISTANCE);
 
 	if (flags & (uint32_t)BroadPhaseFlags::INCLUDE_TILES) {
 #define MAX_C_PER_D 64
@@ -110,7 +110,7 @@ void Space::add_curr_pair(BodyID a, BodyID b, Vector3i xzl, Vector3 normal, floa
 		*p_info = new_info;
 	} else {
 		curr_pairs.insert(pair, new_info);
-		curr_events.push_back(CollisionEvent(CollisionEvent::Type::ADDED, a, b, xzl, normal));
+		curr_events.push_back(CollisionEvent(CollisionEvent::Type::ADDED, a, b, xzl, normal, max_sep));
 	}
 }
 
@@ -260,7 +260,7 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		// a: incident body
 		// b: reference body
 		Vector3 n = info.normal;
-		const float e = 1.0f; // restitution
+		const float e = 0.0f; // restitution
 
 		// contact separation
 		Vector3 v_bias(0, 0, 0);
@@ -268,9 +268,6 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 			Vector3 correction = n * (-info.max_sep + FLOAT_EPS);
 			correction *= PENETRATION_CORRECTION_PERCENTAGE;
 			v_bias = correction / delta;
-		} else {
-			// speculative contact
-			assert(info.max_sep <= SPECULATIVE_DISTANCE);
 		}
 
 		if (a->type == BodyType::DYNAMIC) {

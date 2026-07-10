@@ -155,10 +155,13 @@ struct CollisionEvent {
 	BodyID b;
 	Vector3i xzl;
 	Vector3 normal;
+	float max_sep;
 
 	CollisionEvent() = default;
-	CollisionEvent(CollisionEvent::Type type, BodyID a, BodyID b, Vector3i xzl, Vector3 normal = Vector3(0, 0, 0)) :
-			type(type), a(a), b(b), xzl(xzl), normal(normal) {}
+	CollisionEvent(CollisionEvent::Type type, BodyID a, BodyID b, Vector3i xzl) :
+			type(type), a(a), b(b), xzl(xzl), normal(0, 0, 0), max_sep(0) {}
+	CollisionEvent(CollisionEvent::Type type, BodyID a, BodyID b, Vector3i xzl, Vector3 normal, float max_sep) :
+			type(type), a(a), b(b), xzl(xzl), normal(normal), max_sep(max_sep) {}
 };
 
 using CollisionEventHandler = void (*)(const CollisionEvent &ev, void *ctx);
