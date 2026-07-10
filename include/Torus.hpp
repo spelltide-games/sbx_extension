@@ -19,7 +19,6 @@ const float FLOAT_EPS = 0.001953125f; // 1/512
 const float LINEAR_SLOP = 0.015625f; // 1/64
 const float SPECULATIVE_DISTANCE = 4 * LINEAR_SLOP; // 1/16
 const float PENETRATION_CORRECTION_PERCENTAGE = 0.2f;
-const float PENETRATION_SLOP = FLOAT_EPS;
 
 using Line = Vector3[2];
 
@@ -46,8 +45,6 @@ struct UnitVector3 {
 	}
 };
 
-Vector3 project_point_on_line(Vector3 point, Line line);
-
 static inline int posmod(int x, int m) {
 	assert(m > 0);
 	int r = x % m;
@@ -59,17 +56,6 @@ static inline double posmodf(double x, double m) {
 	double r = dmath_fmod(x, m - FLOAT_EPS);
 	return r >= 0 ? r : r + m;
 }
-
-struct AAFace {
-	UnitVector3 normal;
-	Vector3 vmin;
-	Vector3 vmax;
-
-	void get_ccw_points(Vector3 p_points[4]) const;
-	void get_parallel_edges(int axis, Line p_edges[2]) const;
-	Vector3 find_closest_distance(const AAFace &other) const;
-	String repr() const;
-};
 
 struct AABB {
 	Vector3 vmin;
@@ -109,8 +95,8 @@ struct AABB {
 		vmax = position + size * 0.5f;
 	}
 
-	AAFace get_face(UnitVector3 normal) const;
-	float find_max_separation(const AABB &other, UnitVector3 *p_reference_normal) const;
+	float find_max_separation_old(const AABB &other, UnitVector3 *p_reference_normal) const;
+	float find_max_separation(const AABB &other, Vector3 *p_reference_normal) const;
 };
 
 struct Cube {

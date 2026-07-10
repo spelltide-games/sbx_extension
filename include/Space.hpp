@@ -1,7 +1,7 @@
 #pragma once
 
-#include "godot_cpp/templates/hash_map.hpp"
 #include "godot_cpp/classes/array_mesh.hpp"
+#include "godot_cpp/templates/hash_map.hpp"
 #include <cassert>
 
 #include "Tilemap.hpp"
@@ -101,24 +101,20 @@ struct CollisionPair {
 	BodyID b;
 	Vector3i xzl;
 
-	CollisionPair(BodyID a, BodyID b, Vector3i xzl) {
+	static bool is_ordered(BodyID a, BodyID b, Vector3i xzl) {
 		if (a.type > b.type) {
-			this->a = a;
-			this->b = b;
+			return true;
 		} else if (a.type < b.type) {
-			this->a = b;
-			this->b = a;
+			return false;
 		} else {
-			assert(a.id != b.id);
-			if (a.id > b.id) {
-				this->a = a;
-				this->b = b;
-			} else {
-				this->a = b;
-				this->b = a;
-			}
+			return a.id > b.id;
 		}
-		this->xzl = xzl;
+	}
+
+	CollisionPair(BodyID a, BodyID b, Vector3i xzl) :
+			a(a), b(b), xzl(xzl) {
+		assert(a.type == BodyType::DYNAMIC || a.type == BodyType::KINEMATIC);
+		assert(is_ordered(a, b, xzl));
 	}
 
 	bool operator==(const CollisionPair &other) const {
@@ -247,7 +243,7 @@ struct Space {
 	void update_body_chunk(BodyID bid);
 	void remove_body_chunk(BodyID bid);
 
-	void draw_body(PackedVector3Array* p_array, BodyID bid, Vector3i xzl);
+	void draw_body(PackedVector3Array *p_array, BodyID bid, Vector3i xzl);
 	void draw_chunk_bodies(Ref<ArrayMesh> mesh, bool include_tiles, int x, int y, int w, int h);
 
 	// void point_cast(Vector3 point);

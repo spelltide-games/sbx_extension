@@ -4,7 +4,7 @@
 namespace sbx {
 
 void Space::broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
-	// aabb.grow(SPECULATIVE_DISTANCE);  // BUG??
+	// aabb.grow(SPECULATIVE_DISTANCE);
 
 	if (flags & (uint32_t)BroadPhaseFlags::INCLUDE_TILES) {
 #define MAX_C_PER_D 64
@@ -191,8 +191,6 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		auto hwnd = nonstatic_bodies.createHandleFromData(i);
 		Body *a = hwnd.operator->();
 		BodyID a_bid(a->type, hwnd.getID());
-		assert(a->type != BodyType::STATIC);
-
 		std::pair<Vector2i, BodyID> ctx_pair(Vector2i(width(), height()), a_bid);
 
 		// this causes bug for curr_pairs
@@ -206,12 +204,13 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 			Vector2i torus_size = ctx_pair->first;
 			BodyID a_bid = ctx_pair->second;
 
-			Body *a = space->get_body(a_bid);
-			Body *b = space->get_body(candidate);
-
-			if (a == b) {
+			if (!CollisionPair::is_ordered(a_bid, candidate, xzl)) {
 				return;
 			}
+
+			Body *a = space->get_body(a_bid);
+			Body *b = space->get_body(candidate);
+			ERR_FAIL_COND(a == b);
 
 			// narrow phase
 			AABB a_core = a->cube.core;
@@ -221,33 +220,11 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 			}
 			torus_normalize_two_aabb(torus_size.x, torus_size.y, &a_core, &b_core);
 
-			UnitVector3 n;
-			float max_sep = a_core.find_max_separation(b_core, &n);
-			// print_line("max_sep: " + rtos(max_sep) + ", n: " + n.to_vec3());
-
-			if (max_sep < 0) {
-				space->add_curr_pair(a_bid, candidate, xzl, n.to_vec3(), max_sep);
-			} else {
-				AAFace a_face = a_core.get_face(n.flip());
-				AAFace b_face = b_core.get_face(n);
-				// print_line("a_face: " + a_face.repr());
-				// print_line("b_face: " + b_face.repr());
-
-				Vector3 n_alt = a_face.find_closest_distance(b_face);
-				float n_alt_length = n_alt.length();
-				max_sep = n_alt_length - a->cube.radius - b->cube.radius;
-				// print_line("n_alt_length: " + rtos(n_alt_length) + ", max_sep: " + rtos(max_sep));
-
-				if (max_sep < 0) {
-					if (n_alt_length > FLOAT_EPS) {
-						n_alt /= n_alt_length;
-					} else {
-						n_alt = a_core.position() - b_core.position();
-						n_alt /= n_alt.length();
-					}
-					space->add_curr_pair(a_bid, candidate, xzl, n_alt, max_sep);
-					// print_line("max_sep_alt: " + rtos(max_sep) + ", n_alt: " + n_alt);
-				}
+			Vector3 normal;
+			float max_sep = a_core.find_max_separation(b_core, &normal);
+			max_sep = max_sep - a->cube.radius - b->cube.radius;
+			if (max_sep < FLOAT_EPS) {
+				space->add_curr_pair(a_bid, candidate, xzl, normal, max_sep);
 			}
 		});
 	}
@@ -282,16 +259,19 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 
 		// a: incident body
 		// b: reference body
-		assert(info.max_sep < 0);
-		assert(pair.a.type != BodyType::STATIC);
-
 		Vector3 n = info.normal;
 		const float e = 1.0f; // restitution
 
 		// contact separation
-		Vector3 correction = n * (-info.max_sep + PENETRATION_SLOP);
-		correction *= PENETRATION_CORRECTION_PERCENTAGE;
-		Vector3 v_bias = correction / delta;
+		Vector3 v_bias(0, 0, 0);
+		if (info.max_sep < LINEAR_SLOP) {
+			Vector3 correction = n * (-info.max_sep + FLOAT_EPS);
+			correction *= PENETRATION_CORRECTION_PERCENTAGE;
+			v_bias = correction / delta;
+		} else {
+			// speculative contact
+			assert(info.max_sep <= SPECULATIVE_DISTANCE);
+		}
 
 		if (a->type == BodyType::DYNAMIC) {
 			if (b->type != BodyType::DYNAMIC) {
