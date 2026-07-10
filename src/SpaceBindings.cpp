@@ -385,6 +385,10 @@ static void setup_Space(py_GlobalRef mod) {
 	BIND_BODY_SETTER(velocity, velocity, tp_vec3, gd_tovec3)
 	BIND_BODY_GETTER(instant_velocity, instant_velocity, gd_newvec3)
 	BIND_BODY_SETTER(instant_velocity, instant_velocity, tp_vec3, gd_tovec3)
+	BIND_BODY_GETTER(friction, friction, py_newfloat)
+	BIND_BODY_SETTER(friction, friction, tp_float, py_tofloat)
+	BIND_BODY_GETTER(restitution, restitution, py_newfloat)
+	BIND_BODY_SETTER(restitution, restitution, tp_float, py_tofloat)
 
 	BIND_BODY_GETTER(position, position(), gd_newvec3)
 	BIND_BODY_GETTER(aabb_extent, cube.aabb().extent(), gd_newvec3)

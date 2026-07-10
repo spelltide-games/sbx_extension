@@ -68,6 +68,8 @@ struct Body {
 
 	Cube cube;
 	float mass;
+	float friction;
+	float restitution;
 	int chunk_index;
 
 	BodyID prev;
@@ -82,6 +84,8 @@ struct Body {
 			is_trigger(false),
 			cube(Vector3(0, 0, 0), aabb_extent, radius01),
 			mass(mass),
+			friction(0.6f),
+			restitution(0.0f),
 			chunk_index(-1),
 			prev(),
 			next(),

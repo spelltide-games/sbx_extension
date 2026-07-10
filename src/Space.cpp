@@ -1,6 +1,10 @@
 #include "Space.hpp"
 #include <cassert>
 
+extern "C" {
+double dmath_sqrt(double);
+}
+
 namespace sbx {
 
 void Space::broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
@@ -193,11 +197,6 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		BodyID a_bid(a->type, hwnd.getID());
 		std::pair<Vector2i, BodyID> ctx_pair(Vector2i(width(), height()), a_bid);
 
-		// this causes bug for curr_pairs
-		// if (!a->is_moving()) {
-		// 	continue;
-		// }
-
 		uint32_t flags = (uint32_t)BroadPhaseFlags::ALL;
 		broad_phase_query(a->cube.aabb(), layer_masks[a->layer], flags, (void *)&ctx_pair, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
 			std::pair<Vector2i, BodyID> *ctx_pair = (std::pair<Vector2i, BodyID> *)ctx;
@@ -223,7 +222,7 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 			Vector3 normal;
 			float max_sep = a_core.find_max_separation(b_core, &normal);
 			max_sep = max_sep - a->cube.radius - b->cube.radius;
-			if (max_sep < FLOAT_EPS) {
+			if (max_sep < LINEAR_SLOP) {
 				space->add_curr_pair(a_bid, candidate, xzl, normal, max_sep);
 			}
 		});
@@ -257,15 +256,21 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 			continue;
 		}
 
+		float f = dmath_sqrt(a->friction * b->friction);
+		(void)f;
+
+		// Restitution is combined this way so that you can have a bouncy super
+		// ball without having a bouncy floor.
+		float e = Math::max<float>(a->restitution, b->restitution);
+
 		// a: incident body
 		// b: reference body
 		Vector3 n = info.normal;
-		const float e = 0.0f; // restitution
 
 		// contact separation
 		Vector3 v_bias(0, 0, 0);
-		if (info.max_sep < LINEAR_SLOP) {
-			Vector3 correction = n * (-info.max_sep + FLOAT_EPS);
+		if (info.max_sep < 0) {
+			Vector3 correction = n * (-info.max_sep + LINEAR_SLOP);
 			correction *= PENETRATION_CORRECTION_PERCENTAGE;
 			v_bias = correction / delta;
 		}
@@ -314,7 +319,6 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		auto hwnd = nonstatic_bodies.createHandleFromData(i);
 		Body *body = hwnd.operator->();
 		BodyID bid(body->type, hwnd.getID());
-
 		Vector3 total_vel = body->velocity + body->instant_velocity;
 		body->instant_velocity.zero();
 		body->cube.torus_move(total_vel * delta, width(), height());
