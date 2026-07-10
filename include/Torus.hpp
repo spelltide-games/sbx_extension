@@ -20,31 +20,6 @@ const float LINEAR_SLOP = 0.015625f; // 1/64
 const float SPECULATIVE_DISTANCE = 4 * LINEAR_SLOP; // 1/16
 const float PENETRATION_CORRECTION_PERCENTAGE = 0.2f;
 
-using Line = Vector3[2];
-
-struct UnitVector3 {
-	int axis;
-	int sign;
-
-	UnitVector3 flip() const {
-		return UnitVector3{ axis, -sign };
-	}
-
-	Vector3 to_vec3() const {
-		Vector3 v(0, 0, 0);
-		v[axis] = (float)sign;
-		return v;
-	}
-
-	bool operator==(const UnitVector3 &other) const {
-		return axis == other.axis && sign == other.sign;
-	}
-
-	bool operator!=(const UnitVector3 &other) const {
-		return axis != other.axis || sign != other.sign;
-	}
-};
-
 static inline int posmod(int x, int m) {
 	assert(m > 0);
 	int r = x % m;
@@ -95,7 +70,6 @@ struct AABB {
 		vmax = position + size * 0.5f;
 	}
 
-	float find_max_separation_old(const AABB &other, UnitVector3 *p_reference_normal) const;
 	float find_max_separation(const AABB &other, Vector3 *p_reference_normal) const;
 };
 
