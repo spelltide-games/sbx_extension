@@ -251,6 +251,17 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
+	py_bindproperty(t, "gravity", [](int argc, py_Ref argv) {
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		gd_newvec3(py_retval(), self->gravity);
+		return true; }, [](int argc, py_Ref argv) {
+			Space *self = (Space *)py_touserdata(&argv[0]);
+			PY_CHECK_ARGC(2);
+			PY_CHECK_ARG_TYPE(1, tp_vec3);
+			self->gravity = gd_tovec3(&argv[1]);
+			py_newnone(py_retval());
+			return true; });
+
 	// tilemap
 	py_bindproperty(t, "tilemap", [](int argc, py_Ref argv) {
 		Space *self = (Space *)py_touserdata(&argv[0]);

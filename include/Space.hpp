@@ -90,10 +90,6 @@ struct Body {
 
 	Vector3 position() const { return cube.core.position(); }
 	Vector2 position_xz() const { return cube.core.position_xz(); }
-
-	bool is_moving() const {
-		return velocity != Vector3(0, 0, 0) || instant_velocity != Vector3(0, 0, 0);
-	}
 };
 
 struct CollisionPair {

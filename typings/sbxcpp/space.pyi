@@ -48,6 +48,8 @@ class CollisionCallbacks(Protocol):
     def on_pair_remove(self, a: BodyID, b: BodyID, xzl: vec3i): ...
 
 class Space:
+    gravity: vec3
+    
     def __new__(cls, tilemap: Tilemap, chunk_size: int, callbacks: CollisionCallbacks): ...
 
     @property

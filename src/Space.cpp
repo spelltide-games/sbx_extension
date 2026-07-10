@@ -315,14 +315,18 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		Body *body = hwnd.operator->();
 		BodyID bid(body->type, hwnd.getID());
 
-		if (!body->is_moving()) {
-			continue;
-		}
-		// body->velocity += this->gravity * delta;
 		Vector3 total_vel = body->velocity + body->instant_velocity;
 		body->instant_velocity.zero();
 		body->cube.torus_move(total_vel * delta, width(), height());
 		update_body_chunk(bid);
+	}
+
+	if (gravity != Vector3(0, 0, 0)) {
+		for (Body &b : nonstatic_bodies) {
+			if (b.type == BodyType::DYNAMIC) {
+				b.velocity += gravity * delta;
+			}
+		}
 	}
 
 	// dispatch events
