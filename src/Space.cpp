@@ -197,6 +197,12 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		BodyID a_bid(a->type, hwnd.getID());
 		std::pair<Vector2i, BodyID> ctx_pair(Vector2i(width(), height()), a_bid);
 
+		if (gravity != Vector3(0, 0, 0)) {
+			if (a->type == BodyType::DYNAMIC) {
+				a->velocity += gravity * delta;
+			}
+		}
+
 		uint32_t flags = (uint32_t)BroadPhaseFlags::ALL;
 		broad_phase_query(a->cube.aabb(), layer_masks[a->layer], flags, (void *)&ctx_pair, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
 			std::pair<Vector2i, BodyID> *ctx_pair = (std::pair<Vector2i, BodyID> *)ctx;
@@ -323,14 +329,6 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		body->instant_velocity.zero();
 		body->cube.torus_move(total_vel * delta, width(), height());
 		update_body_chunk(bid);
-	}
-
-	if (gravity != Vector3(0, 0, 0)) {
-		for (Body &b : nonstatic_bodies) {
-			if (b.type == BodyType::DYNAMIC) {
-				b.velocity += gravity * delta;
-			}
-		}
 	}
 
 	// dispatch events
