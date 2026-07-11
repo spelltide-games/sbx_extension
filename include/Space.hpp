@@ -21,12 +21,6 @@ enum class BodyType : uint8_t {
 	DYNAMIC, // positive mass, velocity determined by forces, moved by solver
 };
 
-struct TileBody {
-	Cube cube;
-	uint32_t layer;
-	bool is_trigger;
-};
-
 struct Body;
 
 struct BodyID {
