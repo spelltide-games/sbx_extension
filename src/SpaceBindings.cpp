@@ -4,11 +4,20 @@
 namespace sbx {
 
 static py_Type _tp_BodyID;
+static py_Type _tp_Tile;
+
 py_Type get_BodyID_type() {
 	if (_tp_BodyID == 0) {
 		_tp_BodyID = py_gettype("sbxcpp.space", py_name("BodyID"));
 	}
 	return _tp_BodyID;
+}
+
+py_Type get_Tile_type() {
+	if (_tp_Tile == 0) {
+		_tp_Tile = py_gettype("sbxcpp.space", py_name("Tile"));
+	}
+	return _tp_Tile;
 }
 
 static void gd_newvec3(py_Ref r, Vector3 v) {
@@ -18,6 +27,76 @@ static void gd_newvec3(py_Ref r, Vector3 v) {
 static Vector3 gd_tovec3(py_Ref r) {
 	c11_vec3 v = py_tovec3(r);
 	return Vector3(v.x, v.y, v.z);
+}
+
+static void gd_newtile(py_Ref r, Tile t) {
+	py_newtrivial(r, get_Tile_type(), &t, sizeof(Tile));
+}
+
+static Tile gd_totile(py_Ref r) {
+	Tile *t = (Tile *)py_totrivial(r);
+	return *t;
+}
+
+static void setup_Tile(py_GlobalRef mod) {
+	py_Type t = py_newtype("Tile", tp_object, mod, NULL);
+	py_tpsetfinal(t);
+	py_bindmethod(t, "__new__", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(1 + 4);
+		PY_CHECK_ARG_TYPE(1, tp_int);
+		PY_CHECK_ARG_TYPE(2, tp_int);
+		PY_CHECK_ARG_TYPE(3, tp_int);
+		PY_CHECK_ARG_TYPE(4, tp_int);
+		py_Type tile_t = py_totype(argv);
+		Tile tile;
+		tile.data[0] = (TileID)py_toint(&argv[1]);
+		tile.data[1] = (TileID)py_toint(&argv[2]);
+		tile.data[2] = (TileID)py_toint(&argv[3]);
+		tile.data[3] = (TileID)py_toint(&argv[4]);
+		gd_newtile(py_retval(), tile);
+		return true;
+	});
+
+	py_bindmethod(t, "__repr__", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(1);
+		Tile *self = (Tile *)py_totrivial(argv);
+		String repr = String("Tile({0}, {1}, {2}, {3})").format(Array::make((int)self->data[0], (int)self->data[1], (int)self->data[2], (int)self->data[3]));
+		pkpy::py_newstring(py_retval(), repr);
+		return true;
+	});
+
+	py_bindmethod(t, "__len__", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(1);
+		py_newint(py_retval(), Tilemap::n_layers());
+		return true;
+	});
+
+	py_bindmethod(t, "with_l", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(3);
+		PY_CHECK_ARG_TYPE(1, tp_int);
+		PY_CHECK_ARG_TYPE(2, tp_int);
+		Tile tile = gd_totile(&argv[0]);
+		int layer = py_toint(&argv[1]);
+		TileID tile_id = (TileID)py_toint(&argv[2]);
+		if (layer < 0 || layer >= Tilemap::n_layers()) {
+			return IndexError("layer index out of range");
+		}
+		tile.data[layer] = tile_id;
+		gd_newtile(py_retval(), tile);
+		return true;
+	});
+
+	py_bindmethod(t, "__getitem__", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(2);
+		PY_CHECK_ARG_TYPE(1, tp_int);
+		Tile tile = gd_totile(&argv[0]);
+		int layer = py_toint(&argv[1]);
+		if (layer < 0 || layer >= Tilemap::n_layers()) {
+			return IndexError("layer index out of range");
+		}
+		py_newint(py_retval(), tile.data[layer]);
+		return true;
+	});
 }
 
 static void setup_Tilemap(py_GlobalRef mod) {
@@ -47,7 +126,7 @@ static void setup_Tilemap(py_GlobalRef mod) {
 
 	BIND_INT_PROPERTY(width, width())
 	BIND_INT_PROPERTY(height, height())
-	BIND_INT_PROPERTY(n_layers, n_layers())
+	BIND_INT_PROPERTY(n_layers, Tilemap::n_layers())
 
 	BIND_INT_PROPERTY(slice_x, slice_x)
 	BIND_INT_PROPERTY(slice_y, slice_y)
@@ -91,38 +170,27 @@ static void setup_Tilemap(py_GlobalRef mod) {
 		return true;
 	});
 
-	py_bindmethod(t, "setv", [](int argc, py_Ref argv) {
+	py_bindmethod(t, "set_tile", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(4);
 		PY_CHECK_ARG_TYPE(1, tp_int);
 		PY_CHECK_ARG_TYPE(2, tp_int);
-		PY_CHECK_ARG_TYPE(3, tp_vec4i);
+		PY_CHECK_ARG_TYPE(3, get_Tile_type());
 		Tilemap *self = (Tilemap *)py_touserdata(&argv[0]);
 		py_i64 x = cpy312__int_mod(py_toint(&argv[1]), self->width());
 		py_i64 y = cpy312__int_mod(py_toint(&argv[2]), self->height());
-		c11_vec4i v = py_tovec4i(&argv[3]);
-		Tile *tile = self->get(x, y);
-		tile->data[0] = v.data[0];
-		tile->data[1] = v.data[1];
-		tile->data[2] = v.data[2];
-		tile->data[3] = v.data[3];
+		*self->get(x, y) = gd_totile(&argv[3]);
 		py_newnone(py_retval());
 		return true;
 	});
 
-	py_bindmethod(t, "getv", [](int argc, py_Ref argv) {
+	py_bindmethod(t, "get_tile", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(3);
 		PY_CHECK_ARG_TYPE(1, tp_int);
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		Tilemap *self = (Tilemap *)py_touserdata(&argv[0]);
 		py_i64 x = cpy312__int_mod(py_toint(&argv[1]), self->width());
 		py_i64 y = cpy312__int_mod(py_toint(&argv[2]), self->height());
-		Tile *tile = self->get(x, y);
-		c11_vec4i v;
-		v.data[0] = tile->data[0];
-		v.data[1] = tile->data[1];
-		v.data[2] = tile->data[2];
-		v.data[3] = tile->data[3];
-		py_newvec4i(py_retval(), v);
+		gd_newtile(py_retval(), *self->get(x, y));
 		return true;
 	});
 
@@ -195,7 +263,7 @@ static void setup_BodyID(py_GlobalRef mod) {
 		} else {
 			repr = String("BodyID(INVALID)");
 		}
-		py_newstr(py_retval(), repr.utf8().get_data());
+		pkpy::py_newstring(py_retval(), repr);
 		return true;
 	});
 }
@@ -410,6 +478,7 @@ static void setup_Space(py_GlobalRef mod) {
 
 void setup_space_module(const char *name) {
 	py_GlobalRef mod = py_newmodule(name);
+	setup_Tile(mod);
 	setup_Tilemap(mod);
 	setup_BodyID(mod);
 	setup_Space(mod);

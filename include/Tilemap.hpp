@@ -46,14 +46,14 @@ struct Tilemap {
 
 	int width() const { return slice_w; }
 	int height() const { return slice_h; }
-	int n_layers() const { return sizeof(Tile) / sizeof(TileID); }
+	static int n_layers() { return sizeof(Tile) / sizeof(TileID); }
 
 	bool is_valid_xy(int x, int y) const {
 		return x >= 0 && y >= 0 && x < slice_w && y < slice_h;
 	}
 
 	bool is_valid_xyl(int x, int y, int layer) const {
-		return is_valid_xy(x, y) && layer >= 0 && layer < n_layers();
+		return is_valid_xy(x, y) && layer >= 0 && layer < Tilemap::n_layers();
 	}
 
 	Tile *get(int x, int y) const {
