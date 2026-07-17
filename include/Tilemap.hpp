@@ -57,7 +57,8 @@ struct Tilemap {
 	}
 
 	Tile *get(int x, int y) const {
-		return tiles.get() + ((slice_y + y) * width() + (slice_x + x));
+		assert(is_valid_xy(x, y));
+		return tiles.get() + ((slice_y + y) * full_w + (slice_x + x));
 	}
 
 	Tilemap slice_reverted() {
