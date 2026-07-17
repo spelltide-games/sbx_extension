@@ -1,14 +1,18 @@
 #include "Torus.hpp"
 #include <cassert>
 
+extern "C" {
+double dmath_floor(double);
+}
+
 namespace sbx {
 
-int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int *out, int out_size) {
+int torus_iter_chunks_1d(int size, int chunk_size, float dmin, float dmax, int *out, int out_size) {
 	int n = size / chunk_size;
 	assert(size % chunk_size == 0);
 
-	double d0 = posmodf(dmin, size);
-	double d1 = posmodf(dmax, size);
+	float d0 = posmodf(dmin, size);
+	float d1 = posmodf(dmax, size);
 
 	int c0 = (int)dmath_floor(d0 / chunk_size);
 	int c1 = (int)dmath_floor(d1 / chunk_size);
@@ -45,8 +49,8 @@ int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int
 }
 
 void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b) {
-	const double w = (double)width;
-	const double h = (double)height;
+	const float w = (float)width;
+	const float h = (float)height;
 
 	Vector3 rel = p_aabb_b->position() - p_aabb_a->position();
 	rel.x = posmodf(rel.x + 0.5 * w, w) - 0.5 * w;

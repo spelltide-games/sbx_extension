@@ -5,11 +5,6 @@
 #include "godot_cpp/variant/vector3.hpp"
 #include <cassert>
 
-extern "C" {
-double dmath_fmod(double, double);
-double dmath_floor(double);
-}
-
 namespace sbx {
 
 using namespace godot;
@@ -26,10 +21,13 @@ static inline int posmod(int x, int m) {
 	return r < 0 ? r + m : r;
 }
 
-static inline double posmodf(double x, double m) {
+static inline double posmodf(float x, float m) {
 	assert(m > 0);
-	double r = dmath_fmod(x, m - FLOAT_EPS);
-	return r >= 0 ? r : r + m;
+	while (x < 0)
+		x += m;
+	while (x >= m)
+		x -= m;
+	return x;
 }
 
 struct AABB {
@@ -155,7 +153,7 @@ struct Chunker {
 	}
 };
 
-int torus_iter_chunks_1d(int size, int chunk_size, double dmin, double dmax, int *out, int out_size);
+int torus_iter_chunks_1d(int size, int chunk_size, float dmin, float dmax, int *out, int out_size);
 void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b);
 bool torus_aabb_intersects(AABB a, AABB b, int width, int height);
 
