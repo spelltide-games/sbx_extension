@@ -10,6 +10,7 @@ namespace sbx {
 using namespace godot;
 
 #define IKCP_MAX_MESSAGE_SIZE 4096
+#define WS_PING_INTERVAL 20.0
 
 static PackedByteArray bytes_to_gd(py_Ref bytes) {
 	assert(bytes->type == tp_bytes);
@@ -33,6 +34,7 @@ struct LockstepGoNetwork {
 
 	LockstepGoNetwork(py_Ref callbacks) {
 		ws_peer.instantiate();
+		ws_peer->set_heartbeat_interval(WS_PING_INTERVAL);
 		udp_peer.instantiate();
 		ikcp = nullptr;
 		udp_redundancy = 1;
