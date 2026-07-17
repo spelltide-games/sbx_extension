@@ -468,6 +468,23 @@ static void setup_Space(py_GlobalRef mod) {
 #undef BIND_BODY_GETTER
 #undef BIND_BODY_SETTER
 
+	py_bindmethod(t, "body_get_chunk_pos", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(2);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, get_BodyID_type());
+		BodyID *bid = (BodyID *)py_totrivial(&argv[1]);
+		Body *body = self->get_body(*bid);
+		int idx = body->chunk_index;
+		if (idx < 0) {
+			py_newvec2i(py_retval(), c11_vec2i{ { -1, -1 } });
+			return true;
+		}
+		int cx = idx % self->chunker.n_chunks_x;
+		int cz = idx / self->chunker.n_chunks_x;
+		py_newvec2i(py_retval(), c11_vec2i{ { cx, cz } });
+		return true;
+	});
+
 	py_bindmethod(t, "get_ptr", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(1);
 		Space *self = (Space *)py_touserdata(&argv[0]);
