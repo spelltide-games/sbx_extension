@@ -89,6 +89,8 @@ void from_var(Tilemap *p, Variant v) {
 	p->slice_w = a[4];
 	p->slice_h = a[5];
 	PackedByteArray b_tiles = a[6];
+	size_t expected_size = p->full_w * p->full_h * sizeof(Tile);
+	assert(b_tiles.size() == expected_size);
 	p->tiles = std::shared_ptr<Tile>(new Tile[p->full_w * p->full_h], std::default_delete<Tile[]>());
 	std::memcpy(p->tiles.get(), b_tiles.ptr(), b_tiles.size());
 }
@@ -206,20 +208,17 @@ void from_var(CollisionEvent *p, Variant v) {
 // uint32_t[32]
 template <>
 Variant to_var(const uint32_t p[32]) {
-	PackedInt32Array a;
-	for (int i = 0; i < 32; i++) {
-		a.append(p[i]);
-	}
-	return a;
+	PackedByteArray b;
+	b.resize(32 * sizeof(uint32_t));
+	std::memcpy(b.ptrw(), p, b.size());
+	return b;
 }
 
 template <>
 void from_var(uint32_t p[32], Variant v) {
-	PackedInt32Array a = v;
-	assert(a.size() == 32);
-	for (int i = 0; i < 32; i++) {
-		p[i] = (uint32_t)a[i];
-	}
+	PackedByteArray b = v;
+	assert(b.size() == 32 * sizeof(uint32_t));
+	std::memcpy(p, b.ptr(), b.size());
 }
 
 // BodyIDChunks
@@ -235,6 +234,7 @@ Variant to_var(const BodyIDChunks *p) {
 template <>
 void from_var(BodyIDChunks *p, Variant v) {
 	Array a = v;
+	assert(p->data == nullptr);
 	p->data = new BodyID[a.size()];
 	p->length = a.size();
 	for (int i = 0; i < p->length; ++i) {
@@ -336,7 +336,8 @@ void from_var(siv::Vector<Body> *p, Variant v) {
 	for (int i = 0; i < a_m_data.size(); ++i) {
 		from_var(&p->m_data[i], a_m_data[i]);
 	}
-	p->m_metadata.resize(a_m_metadata.size());
+	assert(a_m_metadata.size() % 2 == 0);
+	p->m_metadata.resize(a_m_metadata.size() / 2);
 	for (int i = 0; i < a_m_metadata.size(); i += 2) {
 		p->m_metadata[i >> 1].rid = (siv::ID)a_m_metadata[i];
 		p->m_metadata[i >> 1].validity_id = (siv::ID)a_m_metadata[i + 1];
