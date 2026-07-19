@@ -184,6 +184,9 @@ struct BodyIDChunks {
 		std::memset(data, 0, length * sizeof(BodyID));
 	}
 
+	BodyIDChunks(const BodyIDChunks &) = delete;
+	BodyIDChunks &operator=(const BodyIDChunks &) = delete;
+
 	~BodyIDChunks() {
 		delete[] data;
 	}
@@ -212,7 +215,7 @@ struct Space {
 		for (int i = 0; i < 32; i++) {
 			layer_masks[i] = 0xFFFFFFFF;
 		}
-		this->chunks = BodyIDChunks(chunker.n_chunks_x, chunker.n_chunks_y);
+		new (&this->chunks) BodyIDChunks(chunker.n_chunks_x, chunker.n_chunks_y);
 	}
 
 	int width() const { return tilemap.width(); }
