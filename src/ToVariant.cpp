@@ -29,6 +29,7 @@ Variant to_var(const HashMap<K, V, H> *p) {
 template <typename K, typename V, typename H>
 void from_var(HashMap<K, V, H> *p, Variant v) {
 	Array a = v;
+	p->clear();
 	assert(a.size() % 2 == 0);
 	for (int i = 0; i < a.size(); i += 2) {
 		K k;
@@ -234,7 +235,8 @@ Variant to_var(const BodyIDChunks *p) {
 template <>
 void from_var(BodyIDChunks *p, Variant v) {
 	Array a = v;
-	assert(a.size() == p->length);
+	p->data = new BodyID[a.size()];
+	p->length = a.size();
 	for (int i = 0; i < p->length; ++i) {
 		from_var(&p->data[i], a[i]);
 	}
@@ -306,28 +308,42 @@ void from_var(Body *p, Variant v) {
 template <>
 Variant to_var(const siv::Vector<Body> *p) {
 	Array a;
-	for (int i = 0; i < p->size(); ++i) {
-		a.append(to_var(&p->m_data[i]));
-		a.append(p->m_metadata[i].rid);
-		a.append(p->m_metadata[i].validity_id);
-		a.append(p->m_indexes[i]);
+	Array a_m_data, a_m_metadata, a_m_indexes;
+	for (int i = 0; i < p->m_data.size(); ++i) {
+		a_m_data.append(to_var(&p->m_data[i]));
 	}
+	for (int i = 0; i < p->m_metadata.size(); ++i) {
+		a_m_metadata.append(p->m_metadata[i].rid);
+		a_m_metadata.append(p->m_metadata[i].validity_id);
+	}
+	for (int i = 0; i < p->m_indexes.size(); ++i) {
+		a_m_indexes.append(p->m_indexes[i]);
+	}
+	a.append(a_m_data);
+	a.append(a_m_metadata);
+	a.append(a_m_indexes);
 	return a;
 }
 
 template <>
 void from_var(siv::Vector<Body> *p, Variant v) {
 	Array a = v;
-	assert(a.size() % 4 == 0);
-	int n = a.size() / 4;
-	p->m_data.resize(n);
-	p->m_metadata.resize(n);
-	p->m_indexes.resize(n);
-	for (int i = 0; i < n; ++i) {
-		from_var(&p->m_data[i], a[i * 4 + 0]);
-		p->m_metadata[i].rid = a[i * 4 + 1];
-		p->m_metadata[i].validity_id = a[i * 4 + 2];
-		p->m_indexes[i] = a[i * 4 + 3];
+	assert(a.size() == 3);
+	Array a_m_data = a[0];
+	Array a_m_metadata = a[1];
+	Array a_m_indexes = a[2];
+	p->m_data.resize(a_m_data.size());
+	for (int i = 0; i < a_m_data.size(); ++i) {
+		from_var(&p->m_data[i], a_m_data[i]);
+	}
+	p->m_metadata.resize(a_m_metadata.size());
+	for (int i = 0; i < a_m_metadata.size(); i += 2) {
+		p->m_metadata[i >> 1].rid = (siv::ID)a_m_metadata[i];
+		p->m_metadata[i >> 1].validity_id = (siv::ID)a_m_metadata[i + 1];
+	}
+	p->m_indexes.resize(a_m_indexes.size());
+	for (int i = 0; i < a_m_indexes.size(); ++i) {
+		p->m_indexes[i] = (siv::ID)a_m_indexes[i];
 	}
 }
 
