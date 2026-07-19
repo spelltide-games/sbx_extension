@@ -6,6 +6,9 @@ namespace sbx {
 static py_Type _tp_BodyID;
 static py_Type _tp_Tile;
 
+Variant space_to_var(const Space *p);
+void space_from_var(Space *p, Variant v);
+
 py_Type get_BodyID_type() {
 	if (_tp_BodyID == 0) {
 		_tp_BodyID = py_gettype("sbxcpp.space", py_name("BodyID"));
@@ -499,6 +502,28 @@ void setup_space_module(const char *name) {
 	setup_Tilemap(mod);
 	setup_BodyID(mod);
 	setup_Space(mod);
+
+	py_bindfunc(mod, "space_to_var", [](int argc, py_Ref argv) {
+		py_Type space_t = py_gettype("sbxcpp.space", py_name("Space"));
+		PY_CHECK_ARGC(1);
+		PY_CHECK_ARG_TYPE(0, space_t);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		Variant v = space_to_var(self);
+		pkpy::py_newvariant(py_retval(), &v);
+		return true;
+	});
+
+	py_bindfunc(mod, "space_from_var", [](int argc, py_Ref argv) {
+		py_Type space_t = py_gettype("sbxcpp.space", py_name("Space"));
+		PY_CHECK_ARGC(2);
+		Variant v = pkpy::py_tovariant(&argv[0]);
+		py_Ref callbacks = &argv[1];
+		void* ud = py_newobject(py_retval(), space_t, 1, sizeof(Space));
+		new (ud) Space();
+		space_from_var((Space*)ud, v);
+		py_setslot(py_retval(), 0, callbacks);
+		return true;
+	});
 }
 
 } //namespace sbx

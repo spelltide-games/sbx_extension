@@ -412,7 +412,7 @@ namespace siv
             return new_id;
         }
 
-    private:
+    public:
         /// The struct holding additional information about an object
         struct Metadata
         {

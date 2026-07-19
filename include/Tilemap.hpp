@@ -33,6 +33,7 @@ struct Tilemap {
 	int slice_x, slice_y, slice_w, slice_h;
 	std::shared_ptr<Tile> tiles;
 
+	Tilemap() = default;
 	Tilemap(int width, int height) :
 			full_w(width),
 			full_h(height),

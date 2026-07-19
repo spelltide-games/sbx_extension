@@ -72,6 +72,7 @@ struct Body {
 	Vector3 velocity;
 	Vector3 instant_velocity;
 
+	Body() = default;
 	Body(BodyType type, Vector3 aabb_extent, float radius01, float mass) :
 			type(type),
 			layer(0),
@@ -105,6 +106,7 @@ struct CollisionPair {
 		}
 	}
 
+	CollisionPair() = default;
 	CollisionPair(BodyID a, BodyID b, Vector3i xzl) :
 			a(a), b(b), xzl(xzl) {
 		assert(a.type == BodyType::DYNAMIC || a.type == BodyType::KINEMATIC);
@@ -166,6 +168,27 @@ enum class BroadPhaseFlags : uint32_t {
 	ALL = 0xFFFFFFFF,
 };
 
+struct BodyIDChunks {
+	BodyID *data;
+	int length;
+
+	BodyID operator[](int index) const {
+		return data[index];
+	}
+
+	BodyIDChunks() :
+			data(nullptr) {}
+	BodyIDChunks(int width, int height) :
+			data(new BodyID[width * height]),
+			length(width * height) {
+		std::memset(data, 0, length * sizeof(BodyID));
+	}
+
+	~BodyIDChunks() {
+		delete[] data;
+	}
+};
+
 struct Space {
 	Tilemap tilemap;
 	Chunker chunker;
@@ -173,22 +196,23 @@ struct Space {
 	Vector3 gravity;
 	uint32_t layer_masks[32];
 
-	BodyID *chunks;
+	BodyIDChunks chunks;
 	siv::Vector<Body> nonstatic_bodies;
 	siv::Vector<Body> static_bodies;
 	siv::Vector<Body> tile_bodies;
-	HashMap<TileID, BodyID> tile_body_registry;
+	HashMap<TileID, BodyID, HashMapHasherDefault> tile_body_registry;
 
 	HashMap<CollisionPair, CollisionPair::Info, CollisionPair::Hasher> curr_pairs;
-	Vector<CollisionEvent> curr_events;
+	std::vector<CollisionEvent> curr_events;
 
+	Space() = default;
 	Space(Tilemap tilemap, int chunk_size) :
 			tilemap(tilemap), chunker(tilemap.width(), tilemap.height(), chunk_size) {
 		this->gravity = Vector3(0, 0, 0);
 		for (int i = 0; i < 32; i++) {
 			layer_masks[i] = 0xFFFFFFFF;
 		}
-		this->chunks = new BodyID[chunker.n_chunks_x * chunker.n_chunks_y];
+		this->chunks = BodyIDChunks(chunker.n_chunks_x, chunker.n_chunks_y);
 	}
 
 	int width() const { return tilemap.width(); }
@@ -199,14 +223,14 @@ struct Space {
 
 	siv::Vector<Body> *get_body_vector(BodyType type) {
 		switch (type) {
-			case BodyType::STATIC:
-				return &static_bodies;
-			case BodyType::DYNAMIC:
-				return &nonstatic_bodies;
-			case BodyType::KINEMATIC:
-				return &nonstatic_bodies;
 			case BodyType::TILE:
 				return &tile_bodies;
+			case BodyType::STATIC:
+				return &static_bodies;
+			case BodyType::KINEMATIC:
+				return &nonstatic_bodies;
+			case BodyType::DYNAMIC:
+				return &nonstatic_bodies;
 		}
 		return nullptr;
 	}

@@ -111,6 +111,7 @@ struct Chunker {
 	int n_chunks_x;
 	int n_chunks_y;
 
+	Chunker() = default;
 	Chunker(int width, int height, int chunk_size) :
 			width(width), height(height), chunk_size(chunk_size) {
 		n_chunks_x = (width + chunk_size - 1) / chunk_size;

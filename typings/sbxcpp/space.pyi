@@ -1,6 +1,6 @@
 from typing import Self, Literal, Protocol
 from vmath import vec3, vec3i, vec2i
-from godot import PackedVector3Array
+from godot import PackedVector3Array, Variant
 
 TileID = int
 
@@ -97,5 +97,9 @@ class Space:
     def body_get_chunk_pos(self, bid: BodyID) -> vec2i: ...
 
     def get_ptr(self) -> int: ...
+
+
+def space_to_var(self) -> Variant: ...
+def space_from_var(v: Variant, callbacks: CollisionCallbacks) -> Space: ...
 
 
