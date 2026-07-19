@@ -177,7 +177,7 @@ struct BodyIDChunks {
 	}
 
 	BodyIDChunks() :
-			data(nullptr) {}
+			data(nullptr), length(0) {}
 	BodyIDChunks(int width, int height) :
 			data(new BodyID[width * height]),
 			length(width * height) {
