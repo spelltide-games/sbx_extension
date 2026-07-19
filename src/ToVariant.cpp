@@ -333,41 +333,41 @@ void from_var(siv::Vector<Body> *p, Variant v) {
 
 // Space
 Variant space_to_var(const Space *p) {
-	Array a;
-	a.append(to_var(&p->tilemap));
-	a.append(to_var(&p->chunks));
+	Dictionary d;
+	d["tilemap"] = to_var(&p->tilemap);
+	d["chunker"] = to_var(&p->chunker);
 
-	a.append(p->gravity);
-	a.append(to_var(p->layer_masks));
+	d["gravity"] = p->gravity;
+	d["layer_masks"] = to_var(p->layer_masks);
 
-	a.append(to_var(&p->chunks));
-	a.append(to_var(&p->nonstatic_bodies));
-	a.append(to_var(&p->static_bodies));
-	a.append(to_var(&p->tile_bodies));
-	a.append(to_var(&p->tile_body_registry));
+	d["chunks"] = to_var(&p->chunks);
+	d["nonstatic_bodies"] = to_var(&p->nonstatic_bodies);
+	d["static_bodies"] = to_var(&p->static_bodies);
+	d["tile_bodies"] = to_var(&p->tile_bodies);
+	d["tile_body_registry"] = to_var(&p->tile_body_registry);
 
-	a.append(to_var(&p->curr_pairs));
-	a.append(to_var(&p->curr_events));
-	return a;
+	d["curr_pairs"] = to_var(&p->curr_pairs);
+	d["curr_events"] = to_var(&p->curr_events);
+
+	return d;
 }
 
 void space_from_var(Space *p, Variant v) {
-	Array a = v;
-	assert(a.size() == 11);
-	from_var(&p->tilemap, a[0]);
-	from_var(&p->chunks, a[1]);
+	Dictionary d = v;
+	from_var(&p->tilemap, d["tilemap"]);
+	from_var(&p->chunker, d["chunker"]);
 
-	p->gravity = a[2];
-	from_var(p->layer_masks, a[3]);
+	p->gravity = d["gravity"];
+	from_var(p->layer_masks, d["layer_masks"]);
 
-	from_var(&p->chunks, a[4]);
-	from_var(&p->nonstatic_bodies, a[5]);
-	from_var(&p->static_bodies, a[6]);
-	from_var(&p->tile_bodies, a[7]);
-	from_var(&p->tile_body_registry, a[8]);
+	from_var(&p->chunks, d["chunks"]);
+	from_var(&p->nonstatic_bodies, d["nonstatic_bodies"]);
+	from_var(&p->static_bodies, d["static_bodies"]);
+	from_var(&p->tile_bodies, d["tile_bodies"]);
+	from_var(&p->tile_body_registry, d["tile_body_registry"]);
 
-	from_var(&p->curr_pairs, a[9]);
-	from_var(&p->curr_events, a[10]);
+	from_var(&p->curr_pairs, d["curr_pairs"]);
+	from_var(&p->curr_events, d["curr_events"]);
 }
 
 } // namespace sbx
