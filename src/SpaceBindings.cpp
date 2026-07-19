@@ -1,5 +1,7 @@
 #include "Space.hpp"
+#include "SpaceSerialize.hpp"
 #include "pkpy.hpp"
+#include <cstring>
 
 namespace sbx {
 
@@ -492,6 +494,29 @@ static void setup_Space(py_GlobalRef mod) {
 		PY_CHECK_ARGC(1);
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		py_newint(py_retval(), (intptr_t)self);
+		return true;
+	});
+
+	py_bindmethod(t, "serialize", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(1);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PackedByteArray bytes = serialize_space(*self);
+		void *dst = py_newbytes(py_retval(), bytes.size());
+		memcpy(dst, bytes.ptr(), bytes.size());
+		return true;
+	});
+
+	py_bindmethod(t, "deserialize", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(2);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_bytes);
+		int size;
+		unsigned char *src = py_tobytes(&argv[1], &size);
+		PackedByteArray buf;
+		buf.resize(size);
+		memcpy(buf.ptrw(), src, size);
+		bool ok = deserialize_space(*self, buf);
+		py_newbool(py_retval(), ok);
 		return true;
 	});
 }
