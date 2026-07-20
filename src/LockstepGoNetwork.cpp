@@ -69,7 +69,7 @@ struct LockstepGoNetwork {
 	}
 };
 
-void setup_lockstep_module(const char* name) {
+void setup_lockstep_module(const char *name) {
 	py_GlobalRef mod = py_newmodule(name);
 	py_Type t = py_newtype("Network", tp_object, mod, [](void *ud) {
 		LockstepGoNetwork *self = (LockstepGoNetwork *)ud;
@@ -155,7 +155,7 @@ void setup_lockstep_module(const char* name) {
 	});
 
 	py_bindmethod(t, "poll", [](int argc, py_Ref argv) {
-		// poll(self) -> int
+		// poll(self) -> None
 		LockstepGoNetwork *self = (LockstepGoNetwork *)py_touserdata(py_arg(0));
 		PY_CHECK_ARGC(1);
 
@@ -175,7 +175,7 @@ void setup_lockstep_module(const char* name) {
 				}
 				break;
 			case WebSocketPeer::STATE_CLOSED:
-				if (!self->ws_closed) {
+				if (self->ws_opened && !self->ws_closed) {
 					self->ws_closed = true;
 				}
 				break;
