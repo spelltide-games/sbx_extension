@@ -172,7 +172,7 @@ struct BodyIDChunks {
 	BodyID *data;
 	int length;
 
-	BodyID operator[](int index) const {
+	BodyID& operator[](int index) {
 		return data[index];
 	}
 
