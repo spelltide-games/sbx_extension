@@ -1,7 +1,5 @@
-#include "godot_cpp/variant/variant.hpp"
+#include "ToVariant.hpp"
 #include <cassert>
-
-#include "Space.hpp"
 
 namespace sbx {
 
@@ -349,7 +347,8 @@ void from_var(siv::Vector<Body> *p, Variant v) {
 }
 
 // Space
-Variant space_to_var(const Space *p) {
+template <>
+Variant to_var(const Space *p) {
 	Dictionary d;
 	d["tilemap"] = to_var(&p->tilemap);
 	d["chunker"] = to_var(&p->chunker);
@@ -369,7 +368,8 @@ Variant space_to_var(const Space *p) {
 	return d;
 }
 
-void space_from_var(Space *p, Variant v) {
+template <>
+void from_var(Space *p, Variant v) {
 	Dictionary d = v;
 	from_var(&p->tilemap, d["tilemap"]);
 	from_var(&p->chunker, d["chunker"]);
@@ -385,6 +385,22 @@ void space_from_var(Space *p, Variant v) {
 
 	from_var(&p->curr_pairs, d["curr_pairs"]);
 	from_var(&p->curr_events, d["curr_events"]);
+}
+
+Variant space_to_var(const Space *p) {
+	return to_var(p);
+}
+
+void space_from_var(Space *p, Variant v) {
+	from_var(p, v);
+}
+
+Variant bodyid_to_var(const BodyID *p) {
+	return to_var(p);
+}
+
+void bodyid_from_var(BodyID *p, Variant v) {
+	from_var(p, v);
 }
 
 } // namespace sbx

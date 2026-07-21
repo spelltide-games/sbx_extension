@@ -1,13 +1,12 @@
 #include "Space.hpp"
+#include "ToVariant.hpp"
 #include "pkpy.hpp"
+
 
 namespace sbx {
 
 static py_Type _tp_BodyID;
 static py_Type _tp_Tile;
-
-Variant space_to_var(const Space *p);
-void space_from_var(Space *p, Variant v);
 
 py_Type get_BodyID_type() {
 	if (_tp_BodyID == 0) {
@@ -269,6 +268,22 @@ static void setup_BodyID(py_GlobalRef mod) {
 		pkpy::py_newstring(py_retval(), repr);
 		return true;
 	});
+
+	py_bindmethod(t, "to_var", [](int argc, py_Ref argv) {
+		BodyID *self = (BodyID *)py_totrivial(argv);
+		Variant v = bodyid_to_var(self);
+		pkpy::py_newvariant(py_retval(), &v);
+		return true;
+	});
+
+	py_bindstaticmethod(t, "from_var", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(1);
+		Variant v = pkpy::py_tovariant(&argv[0]);
+		BodyID bid;
+		bodyid_from_var(&bid, v);
+		py_newtrivial(py_retval(), get_BodyID_type(), &bid, sizeof(BodyID));
+		return true;
+	});
 }
 
 static void collision_event_handler(const CollisionEvent &ev, void *space) {
@@ -494,6 +509,25 @@ static void setup_Space(py_GlobalRef mod) {
 		py_newint(py_retval(), (intptr_t)self);
 		return true;
 	});
+
+	py_bindmethod(t, "to_var", [](int argc, py_Ref argv) {
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		Variant v = space_to_var(self);
+		pkpy::py_newvariant(py_retval(), &v);
+		return true;
+	});
+
+	py_bindstaticmethod(t, "from_var", [](int argc, py_Ref argv) {
+		py_Type space_t = py_gettype("sbxcpp.space", py_name("Space"));
+		PY_CHECK_ARGC(2);
+		Variant v = pkpy::py_tovariant(&argv[0]);
+		py_Ref callbacks = &argv[1];
+		void *ud = py_newobject(py_retval(), space_t, 1, sizeof(Space));
+		new (ud) Space();
+		space_from_var((Space *)ud, v);
+		py_setslot(py_retval(), 0, callbacks);
+		return true;
+	});
 }
 
 void setup_space_module(const char *name) {
@@ -502,28 +536,6 @@ void setup_space_module(const char *name) {
 	setup_Tilemap(mod);
 	setup_BodyID(mod);
 	setup_Space(mod);
-
-	py_bindfunc(mod, "space_to_var", [](int argc, py_Ref argv) {
-		py_Type space_t = py_gettype("sbxcpp.space", py_name("Space"));
-		PY_CHECK_ARGC(1);
-		PY_CHECK_ARG_TYPE(0, space_t);
-		Space *self = (Space *)py_touserdata(&argv[0]);
-		Variant v = space_to_var(self);
-		pkpy::py_newvariant(py_retval(), &v);
-		return true;
-	});
-
-	py_bindfunc(mod, "space_from_var", [](int argc, py_Ref argv) {
-		py_Type space_t = py_gettype("sbxcpp.space", py_name("Space"));
-		PY_CHECK_ARGC(2);
-		Variant v = pkpy::py_tovariant(&argv[0]);
-		py_Ref callbacks = &argv[1];
-		void* ud = py_newobject(py_retval(), space_t, 1, sizeof(Space));
-		new (ud) Space();
-		space_from_var((Space*)ud, v);
-		py_setslot(py_retval(), 0, callbacks);
-		return true;
-	});
 }
 
 } //namespace sbx
