@@ -196,10 +196,7 @@ static bool is_mpack_ext(py_Type t) {
 static bool py_to_mpack_ext(py_Ref r, mpack_writer_t *writer) {
 	Variant v = pkpy::py_tovariant(r);
 	PackedByteArray b = UtilityFunctions::var_to_bytes(v);
-	// mpack_write_ext(writer, 0, (const char *)b.ptr(), b.size());
-    mpack_start_ext(writer, 0, 65535+1);	// force ext32
-    mpack_write_bytes(writer, (const char *)b.ptr(), b.size());
-    mpack_finish_ext(writer);
+	mpack_write_ext(writer, 0, (const char *)b.ptr(), b.size());
 	return true;
 }
 
