@@ -1,6 +1,6 @@
 from typing import Self, Literal, Protocol
 from vmath import vec3, vec3i, vec2i
-from godot import PackedVector3Array, Variant
+from godot import Variant
 
 TileID = int
 

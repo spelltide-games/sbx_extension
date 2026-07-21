@@ -4,7 +4,8 @@
 #include <godot_cpp/variant/string.hpp>
 
 #include "MessagePack.hpp"
-#include "mpack.h"
+#include "mpack1.h"
+#include "pkpy.hpp"
 
 namespace sbx {
 
@@ -188,9 +189,42 @@ PackedByteArray MessagePack::dumps(Variant object) {
 	return arr;
 }
 
+static bool is_mpack_ext(py_Type t) {
+	return t == pkpy::get_Variant_type();
+}
+
+static bool py_to_mpack_ext(py_Ref r, mpack_writer_t *writer) {
+	Variant v = pkpy::py_tovariant(r);
+	PackedByteArray b = UtilityFunctions::var_to_bytes(v);
+	mpack_write_ext(writer, 0, (const char *)b.ptr(), b.size());
+	return true;
+}
+
+static bool mpack_to_py_ext(py_StackRef tmp, mpack_node_t node) {
+	int8_t type = mpack_node_exttype(node);
+	if (type != 0) {
+		return ValueError("msgpack: unsupported ext type %d", (int)type);
+	}
+
+	const char *data = mpack_node_data(node);
+	uint32_t len = mpack_node_data_len(node);
+	PackedByteArray bytes;
+	bytes.resize((int)len);
+	if (len > 0) {
+		std::memcpy(bytes.ptrw(), data, len);
+	}
+
+	Variant value = UtilityFunctions::bytes_to_var(bytes);
+	pkpy::py_newvariant(tmp, &value);
+	return true;
+}
+
 void MessagePack::_bind_methods() {
 	ClassDB::bind_static_method("MessagePack", D_METHOD("loads", "data"), &MessagePack::loads);
 	ClassDB::bind_static_method("MessagePack", D_METHOD("dumps", "object"), &MessagePack::dumps);
+
+	mpack_config_exttype_callbacks(
+			is_mpack_ext, py_to_mpack_ext, mpack_to_py_ext);
 }
 
 } // namespace sbx
