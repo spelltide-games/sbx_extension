@@ -158,6 +158,6 @@ struct Chunker {
 int torus_iter_chunks_1d(int size, int chunk_size, float dmin, float dmax, int *out, int out_size);
 void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b);
 bool torus_aabb_intersects(AABB a, AABB b, int width, int height);
-double torus_distance(Vector3* p_pos, Vector3 ref_pos, int width, int height);
+float torus_closest_mirror(Vector3* p_pos, Vector3 ref_pos, int width, int height);
 
 } // namespace sbx

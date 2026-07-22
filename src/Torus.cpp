@@ -3,6 +3,7 @@
 
 extern "C" {
 double dmath_floor(double);
+double dmath_sqrt(double);
 }
 
 namespace sbx {
@@ -65,27 +66,25 @@ bool torus_aabb_intersects(AABB a, AABB b, int width, int height) {
 	return a._intersects(b);
 }
 
-double torus_distance(Vector3 *p_pos, Vector3 ref_pos, int width, int height) {
+float torus_closest_mirror(Vector3 *p_pos, Vector3 ref_pos, int width, int height) {
+	const int dx[3] = { 0, width, -width };
+	const int dz[3] = { 0, height, -height };
 	Vector3 pos = *p_pos;
-	Vector2 candidates[5] = {
-		Vector2(pos.x, pos.z),
-		Vector2(pos.x + width, pos.z),
-		Vector2(pos.x - width, pos.z),
-		Vector2(pos.x, pos.z + height),
-		Vector2(pos.x, pos.z - height),
-	};
 	Vector2 ref_pos2d(ref_pos.x, ref_pos.z);
-	double min_dist = DOUBLE_MAX;
-	for (int i = 0; i < 5; i++) {
-		double dist = (candidates[i] - ref_pos2d).length();
-		if (dist < min_dist) {
-			min_dist = dist;
-			pos.x = candidates[i].x;
-			pos.z = candidates[i].y;
+	float min_dist_sq = FLOAT_MAX;
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			Vector2 candidate(pos.x + dx[i], pos.z + dz[j]);
+			float dist_sq = (candidate - ref_pos2d).length_squared();
+			if (dist_sq < min_dist_sq) {
+				min_dist_sq = dist_sq;
+				pos.x = candidate.x;
+				pos.z = candidate.y;
+			}
 		}
 	}
 	*p_pos = pos;
-	return min_dist;
+	return min_dist_sq;
 }
 
 float AABB::find_max_separation(const AABB &other, Vector3 *p_reference_normal) const {
@@ -116,7 +115,7 @@ float AABB::find_max_separation(const AABB &other, Vector3 *p_reference_normal) 
 				normal[axis] = max_sep[axis] * sign[axis];
 			}
 		}
-		float length = normal.length();
+		float length = dmath_sqrt(normal.length_squared());
 		normal /= length;
 		*p_reference_normal = normal;
 		return length;

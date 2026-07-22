@@ -443,9 +443,8 @@ static void setup_Space(py_GlobalRef mod) {
 		PY_CHECK_ARG_TYPE(2, tp_vec3);
 		Vector3 pos = gd_tovec3(&argv[1]);
 		Vector3 ref_pos = gd_tovec3(&argv[2]);
-		double dist = torus_distance(&pos, ref_pos, self->width(), self->height());
+		torus_closest_mirror(&pos, ref_pos, self->width(), self->height());
 		gd_newvec3(py_retval(), pos);
-		(void)dist;
 		return true;
 	});
 
