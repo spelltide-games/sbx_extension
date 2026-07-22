@@ -436,6 +436,19 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
+	py_bindmethod(t, "closest_mirror", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(3);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_vec3);
+		PY_CHECK_ARG_TYPE(2, tp_vec3);
+		Vector3 pos = gd_tovec3(&argv[1]);
+		Vector3 ref_pos = gd_tovec3(&argv[2]);
+		double dist = torus_distance(&pos, ref_pos, self->width(), self->height());
+		gd_newvec3(py_retval(), pos);
+		(void)dist;
+		return true;
+	});
+
 	// body properties
 #define BIND_BODY_GETTER(__name, __getter, __init)                    \
 	py_bindmethod(t, "body_get_" #__name, [](int argc, py_Ref argv) { \

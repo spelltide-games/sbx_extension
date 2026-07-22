@@ -9,7 +9,8 @@ namespace sbx {
 
 using namespace godot;
 
-const float FLOAT_MAX = 1e9f;
+const double DOUBLE_MAX = 1e308;
+const float FLOAT_MAX = 3e38f;
 const float FLOAT_EPS = 0.001953125f; // 1/512
 const float LINEAR_SLOP = 0.015625f; // 1/64
 const float SPECULATIVE_DISTANCE = 4 * LINEAR_SLOP; // 1/16
@@ -157,5 +158,6 @@ struct Chunker {
 int torus_iter_chunks_1d(int size, int chunk_size, float dmin, float dmax, int *out, int out_size);
 void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b);
 bool torus_aabb_intersects(AABB a, AABB b, int width, int height);
+double torus_distance(Vector3* p_pos, Vector3 ref_pos, int width, int height);
 
 } // namespace sbx
