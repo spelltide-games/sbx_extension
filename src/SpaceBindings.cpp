@@ -2,7 +2,6 @@
 #include "ToVariant.hpp"
 #include "pkpy.hpp"
 
-
 namespace sbx {
 
 static py_Type _tp_BodyID;
@@ -415,14 +414,54 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
-	py_bindmethod(t, "remove_pairs_with_tile", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(2);
+	py_bindmethod(t, "create_tile", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(5);
 		Space *self = (Space *)py_touserdata(&argv[0]);
-		PY_CHECK_ARG_TYPE(1, tp_vec3i);
-		c11_vec3i c11_xzl = py_tovec3i(&argv[1]);
-		Vector3i xzl(c11_xzl.x, c11_xzl.y, c11_xzl.z);
-		self->remove_pairs_with_tile(xzl, collision_event_handler, argv);
-		py_newnone(py_retval());
+		PY_CHECK_ARG_TYPE(1, tp_int);
+		PY_CHECK_ARG_TYPE(2, tp_int);
+		PY_CHECK_ARG_TYPE(3, tp_int);
+		PY_CHECK_ARG_TYPE(4, tp_int);
+		int x = py_toint(&argv[1]);
+		int z = py_toint(&argv[2]);
+		int layer = py_toint(&argv[3]);
+		TileID tile_id = (TileID)py_toint(&argv[4]);
+		if (layer < 0 || layer >= self->tilemap.n_layers()) {
+			return IndexError("layer index out of range");
+		}
+		x = cpy312__int_mod(x, self->tilemap.width());
+		z = cpy312__int_mod(z, self->tilemap.height());
+		Tile *p_tile = self->tilemap.get(x, z);
+		if (p_tile->data[layer] == 0) {
+			p_tile->data[layer] = tile_id;
+			py_newbool(py_retval(), true);
+			return true;
+		}
+		py_newbool(py_retval(), false);
+		return true;
+	});
+
+	py_bindmethod(t, "destroy_tile", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(4);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_int);
+		PY_CHECK_ARG_TYPE(2, tp_int);
+		PY_CHECK_ARG_TYPE(3, tp_int);
+		int x = py_toint(&argv[1]);
+		int z = py_toint(&argv[2]);
+		int layer = py_toint(&argv[3]);
+		if (layer < 0 || layer >= self->tilemap.n_layers()) {
+			return IndexError("layer index out of range");
+		}
+		x = cpy312__int_mod(x, self->tilemap.width());
+		z = cpy312__int_mod(z, self->tilemap.height());
+		Tile *p_tile = self->tilemap.get(x, z);
+		if (p_tile->data[layer] != 0) {
+			p_tile->data[layer] = 0;
+			self->remove_pairs_with_tile(Vector3i(x, z, layer), collision_event_handler, argv);
+			py_newbool(py_retval(), true);
+			return true;
+		}
+		py_newbool(py_retval(), false);
 		return true;
 	});
 
