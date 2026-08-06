@@ -54,6 +54,11 @@ class BodyID:
 # DYNAMIC, KINEMATIC, STATIC, TILE
 BodyType = Literal[0, 1, 2, 3]
 
+class BroadPhaseFlags:
+    INCLUDE_TILES = 1
+    INCLUDE_BODIES = 2
+    ALL = 0xffffffff
+
 class CollisionCallbacks(Protocol):
     def on_pair_add(self, a: BodyID, b: BodyID, xzl: vec3i, normal: vec3, max_sep: float): ...
     def on_pair_remove(self, a: BodyID, b: BodyID, xzl: vec3i): ...
@@ -109,4 +114,4 @@ class Space:
     @staticmethod
     def from_var(v: Variant, callbacks: CollisionCallbacks) -> Self: ...
 
-
+    def broad_phase(self, vmin: vec3, vmax: vec3, layer_mask: int, flags: int) -> list[tuple[BodyID, vec3i]]: ...

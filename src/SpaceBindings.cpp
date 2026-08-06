@@ -579,6 +579,40 @@ static void setup_Space(py_GlobalRef mod) {
 		py_setslot(py_retval(), 0, callbacks);
 		return true;
 	});
+
+	// def broad_phase(self, vmin: vec3, vmax: vec3, layer_mask: int, flags: int) -> list[tuple[BodyID, vec3i]]: ...
+	py_bindmethod(t, "broad_phase", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(5);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_vec3);
+		PY_CHECK_ARG_TYPE(2, tp_vec3);
+		PY_CHECK_ARG_TYPE(3, tp_int);
+		PY_CHECK_ARG_TYPE(4, tp_int);
+		Vector3 vmin = gd_tovec3(&argv[1]);
+		Vector3 vmax = gd_tovec3(&argv[2]);
+		uint32_t layer_mask = py_toint(&argv[3]);
+		uint32_t flags = py_toint(&argv[4]);
+		AABB aabb(vmin, vmax);
+		py_newlist(py_retval());
+		self->broad_phase(aabb, layer_mask, flags, nullptr, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
+			py_ItemRef item = py_list_emplace(py_retval());
+			py_newtuple(item, 2);
+			py_Ref _0 = py_tuple_getitem(item, 0);
+			py_Ref _1 = py_tuple_getitem(item, 1);
+			py_newtrivial(_0, get_BodyID_type(), (void *)&candidate, sizeof(BodyID));
+			py_newvec3i(_1, c11_vec3i{ { xzl.x, xzl.y, xzl.z } });
+		});
+		return true;
+	});
+}
+
+static void setup_BroadPhaseFlags(py_GlobalRef mod) {
+	py_Type t = py_newtype("BroadPhaseFlags", tp_object, mod, NULL);
+	py_tpsetfinal(t);
+	py_Ref cls = py_tpobject(t);
+	py_newint(py_emplacedict(cls, py_name("INCLUDE_TILES")), (int)BroadPhaseFlags::INCLUDE_TILES);
+	py_newint(py_emplacedict(cls, py_name("INCLUDE_BODIES")), (int)BroadPhaseFlags::INCLUDE_BODIES);
+	py_newint(py_emplacedict(cls, py_name("ALL")), (int)BroadPhaseFlags::ALL);
 }
 
 void setup_space_module(const char *name) {
@@ -587,6 +621,7 @@ void setup_space_module(const char *name) {
 	setup_Tilemap(mod);
 	setup_BodyID(mod);
 	setup_Space(mod);
+	setup_BroadPhaseFlags(mod);
 }
 
 } //namespace sbx

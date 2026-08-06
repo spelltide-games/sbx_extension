@@ -7,7 +7,7 @@ double dmath_sqrt(double);
 
 namespace sbx {
 
-void Space::broad_phase_query(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
+void Space::broad_phase(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
 	aabb.grow(SPECULATIVE_DISTANCE);
 
 	if (flags & (uint32_t)BroadPhaseFlags::INCLUDE_TILES) {
@@ -206,7 +206,7 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		}
 
 		uint32_t flags = (uint32_t)BroadPhaseFlags::ALL;
-		broad_phase_query(a->cube.aabb(), layer_masks[a->layer], flags, (void *)&ctx_pair, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
+		broad_phase(a->cube.aabb(), layer_masks[a->layer], flags, (void *)&ctx_pair, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
 			std::pair<Vector2i, BodyID> *ctx_pair = (std::pair<Vector2i, BodyID> *)ctx;
 			Vector2i torus_size = ctx_pair->first;
 			BodyID a_bid = ctx_pair->second;
