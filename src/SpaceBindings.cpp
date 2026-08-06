@@ -600,7 +600,8 @@ static void setup_Space(py_GlobalRef mod) {
 		} else {
 			PY_CHECK_ARG_TYPE(5, tp_list);
 			out = &argv[5];
-			py_newnone(py_retval());
+			py_list_clear(out);
+			py_assign(py_retval(), out);
 		}
 
 		self->broad_phase(aabb, layer_mask, flags, (void *)out, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
