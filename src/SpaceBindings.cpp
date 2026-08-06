@@ -580,9 +580,8 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
-	// def broad_phase(self, vmin: vec3, vmax: vec3, layer_mask: int, flags: int) -> list[tuple[BodyID, vec3i]]: ...
 	py_bindmethod(t, "broad_phase", [](int argc, py_Ref argv) {
-		PY_CHECK_ARGC(5);
+		PY_CHECK_ARGC(6);
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, tp_vec3);
 		PY_CHECK_ARG_TYPE(2, tp_vec3);
@@ -593,14 +592,24 @@ static void setup_Space(py_GlobalRef mod) {
 		uint32_t layer_mask = py_toint(&argv[3]);
 		uint32_t flags = py_toint(&argv[4]);
 		AABB aabb(vmin, vmax);
-		py_newlist(py_retval());
-		self->broad_phase(aabb, layer_mask, flags, nullptr, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
-			py_ItemRef item = py_list_emplace(py_retval());
-			py_newtuple(item, 2);
-			py_Ref _0 = py_tuple_getitem(item, 0);
-			py_Ref _1 = py_tuple_getitem(item, 1);
-			py_newtrivial(_0, get_BodyID_type(), (void *)&candidate, sizeof(BodyID));
-			py_newvec3i(_1, c11_vec3i{ { xzl.x, xzl.y, xzl.z } });
+
+		py_OutRef out;
+		if (py_isnone(py_arg(5))) {
+			py_newlist(py_retval());
+			out = py_retval();
+		} else {
+			PY_CHECK_ARG_TYPE(5, tp_list);
+			out = &argv[5];
+			py_newnone(py_retval());
+		}
+
+		self->broad_phase(aabb, layer_mask, flags, (void *)out, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
+			py_ItemRef item = py_list_emplace((py_Ref)ctx);
+			if (candidate.type == BodyType::TILE) {
+				py_newvec3i(item, c11_vec3i{ { xzl.x, xzl.y, xzl.z } });
+			} else {
+				py_newtrivial(item, get_BodyID_type(), (void *)&candidate, sizeof(BodyID));
+			}
 		});
 		return true;
 	});
