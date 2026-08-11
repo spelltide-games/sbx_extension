@@ -49,14 +49,18 @@ int torus_iter_chunks_1d(int size, int chunk_size, float dmin, float dmax, int *
 	return k;
 }
 
-void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b) {
+Vector3 torus_substract(Vector3 b, Vector3 a, int width, int height) {
 	const float w = (float)width;
 	const float h = (float)height;
 
-	Vector3 rel = p_aabb_b->position() - p_aabb_a->position();
+	Vector3 rel = b - a;
 	rel.x = posmodf(rel.x + 0.5 * w, w) - 0.5 * w;
 	rel.z = posmodf(rel.z + 0.5 * h, h) - 0.5 * h;
+	return rel;
+}
 
+void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b) {
+	Vector3 rel = torus_substract(p_aabb_b->position(), p_aabb_a->position(), width, height);
 	p_aabb_a->set_position(Vector3(0, 0, 0));
 	p_aabb_b->set_position(rel);
 }
