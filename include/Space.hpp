@@ -59,6 +59,7 @@ struct Body {
 	BodyType type;
 	uint8_t layer;
 	bool is_trigger;
+	bool ignore_tile_collision;
 
 	Cube cube;
 	float mass;
@@ -77,6 +78,7 @@ struct Body {
 			type(type),
 			layer(0),
 			is_trigger(false),
+			ignore_tile_collision(false),
 			cube(Vector3(0, 0, 0), aabb_extent, radius01),
 			mass(mass),
 			friction(0.6f),

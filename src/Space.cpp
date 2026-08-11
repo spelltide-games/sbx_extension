@@ -206,6 +206,9 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 		}
 
 		uint32_t flags = (uint32_t)BroadPhaseFlags::ALL;
+		if (a->ignore_tile_collision) {
+			flags &= ~(uint32_t)BroadPhaseFlags::INCLUDE_TILES;
+		}
 		broad_phase(a->cube.aabb(), layer_masks[a->layer], flags, (void *)&ctx_pair, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
 			std::pair<Vector2i, BodyID> *ctx_pair = (std::pair<Vector2i, BodyID> *)ctx;
 			Vector2i torus_size = ctx_pair->first;

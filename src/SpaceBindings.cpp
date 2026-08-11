@@ -482,7 +482,8 @@ static void setup_Space(py_GlobalRef mod) {
 		PY_CHECK_ARG_TYPE(2, tp_vec3);
 		Vector3 pos = gd_tovec3(&argv[1]);
 		Vector3 ref_pos = gd_tovec3(&argv[2]);
-		torus_closest_mirror(&pos, ref_pos, self->width(), self->height());
+		float dist_sq = torus_closest_mirror(&pos, ref_pos, self->width(), self->height());
+		(void)dist_sq;
 		gd_newvec3(py_retval(), pos);
 		return true;
 	});
@@ -516,6 +517,8 @@ static void setup_Space(py_GlobalRef mod) {
 	BIND_BODY_SETTER(layer, layer, tp_int, py_toint)
 	BIND_BODY_GETTER(is_trigger, is_trigger, py_newbool)
 	BIND_BODY_SETTER(is_trigger, is_trigger, tp_bool, py_tobool)
+	BIND_BODY_GETTER(ignore_tile_collision, ignore_tile_collision, py_newbool)
+	BIND_BODY_SETTER(ignore_tile_collision, ignore_tile_collision, tp_bool, py_tobool)
 	BIND_BODY_GETTER(mass, mass, py_newfloat)
 	BIND_BODY_SETTER(mass, mass, tp_float, py_tofloat)
 	BIND_BODY_GETTER(velocity, velocity, gd_newvec3)
