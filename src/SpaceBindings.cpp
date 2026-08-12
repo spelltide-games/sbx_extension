@@ -25,9 +25,18 @@ static void gd_newvec3(py_Ref r, Vector3 v) {
 	py_newvec3(r, c11_vec3{ { v.x, v.y, v.z } });
 }
 
+static void gd_newvec2i(py_Ref r, Vector2i v) {
+	py_newvec2i(r, c11_vec2i{ { v.x, v.y } });
+}
+
 static Vector3 gd_tovec3(py_Ref r) {
 	c11_vec3 v = py_tovec3(r);
 	return Vector3(v.x, v.y, v.z);
+}
+
+static Vector2i gd_tovec2i(py_Ref r) {
+	c11_vec2i v = py_tovec2i(r);
+	return Vector2i(v.x, v.y);
 }
 
 static void gd_newtile(py_Ref r, Tile t) {
@@ -491,12 +500,40 @@ static void setup_Space(py_GlobalRef mod) {
 	py_bindmethod(t, "substract", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(3);
 		Space *self = (Space *)py_touserdata(&argv[0]);
-		PY_CHECK_ARG_TYPE(1, tp_vec3);
-		PY_CHECK_ARG_TYPE(2, tp_vec3);
-		Vector3 a = gd_tovec3(&argv[1]);
-		Vector3 b = gd_tovec3(&argv[2]);
-		Vector3 rel = torus_substract(b, a, self->width(), self->height());
-		gd_newvec3(py_retval(), rel);
+		if (py_istype(py_arg(1), tp_vec3)) {
+			PY_CHECK_ARG_TYPE(2, tp_vec3);
+			Vector3 lhs = gd_tovec3(&argv[1]);
+			Vector3 rhs = gd_tovec3(&argv[2]);
+			Vector3 rel = torus_substract(lhs, rhs, self->width(), self->height());
+			gd_newvec3(py_retval(), rel);
+		} else if (py_istype(py_arg(1), tp_vec2i)) {
+			PY_CHECK_ARG_TYPE(2, tp_vec2i);
+			Vector2i lhs = gd_tovec2i(&argv[1]);
+			Vector2i rhs = gd_tovec2i(&argv[2]);
+			Vector2i rel = torus_substract(lhs, rhs, self->width(), self->height());
+			gd_newvec2i(py_retval(), rel);
+		} else {
+			return TypeError("substract() argument must be vec3 or vec2i");
+		}
+		return true;
+	});
+
+	py_bindmethod(t, "wrap_point", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(2);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		if (py_istype(py_arg(1), tp_vec3)) {
+			Vector3 pos = gd_tovec3(&argv[1]);
+			pos.x = posmodf(pos.x, self->width());
+			pos.z = posmodf(pos.z, self->height());
+			gd_newvec3(py_retval(), pos);
+		} else if (py_istype(py_arg(1), tp_vec2i)) {
+			Vector2i pos = gd_tovec2i(&argv[1]);
+			pos.x = posmod(pos.x, self->width());
+			pos.y = posmod(pos.y, self->height());
+			gd_newvec2i(py_retval(), pos);
+		} else {
+			return TypeError("wrap_point() argument must be vec3 or vec2i");
+		}
 		return true;
 	});
 

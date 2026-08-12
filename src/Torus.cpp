@@ -49,13 +49,20 @@ int torus_iter_chunks_1d(int size, int chunk_size, float dmin, float dmax, int *
 	return k;
 }
 
-Vector3 torus_substract(Vector3 b, Vector3 a, int width, int height) {
+Vector3 torus_substract(Vector3 lhs, Vector3 rhs, int width, int height) {
 	const float w = (float)width;
 	const float h = (float)height;
 
-	Vector3 rel = b - a;
+	Vector3 rel = lhs - rhs;
 	rel.x = posmodf(rel.x + 0.5 * w, w) - 0.5 * w;
 	rel.z = posmodf(rel.z + 0.5 * h, h) - 0.5 * h;
+	return rel;
+}
+
+Vector2i torus_substract(Vector2i lhs, Vector2i rhs, int width, int height) {
+	Vector2i rel = lhs - rhs;
+	rel.x = posmod(rel.x + width / 2, width) - width / 2;
+	rel.y = posmod(rel.y + height / 2, height) - height / 2;
 	return rel;
 }
 
