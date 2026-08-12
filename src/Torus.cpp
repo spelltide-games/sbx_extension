@@ -77,25 +77,42 @@ bool torus_aabb_intersects(AABB a, AABB b, int width, int height) {
 	return a._intersects(b);
 }
 
-float torus_closest_mirror(Vector3 *p_pos, Vector3 ref_pos, int width, int height) {
-	const int dx[3] = { 0, width, -width };
-	const int dz[3] = { 0, height, -height };
-	Vector3 pos = *p_pos;
-	Vector2 ref_pos2d(ref_pos.x, ref_pos.z);
-	float min_dist_sq = FLOAT_MAX;
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 3; j++) {
-			Vector2 candidate(pos.x + dx[i], pos.z + dz[j]);
-			float dist_sq = (candidate - ref_pos2d).length_squared();
-			if (dist_sq < min_dist_sq) {
-				min_dist_sq = dist_sq;
-				pos.x = candidate.x;
-				pos.z = candidate.y;
-			}
-		}
-	}
-	*p_pos = pos;
-	return min_dist_sq;
+// float torus_closest_mirror(Vector3 *p_pos, Vector3 ref_pos, int width, int height) {
+// 	const int dx[3] = { 0, width, -width };
+// 	const int dz[3] = { 0, height, -height };
+// 	Vector3 pos = *p_pos;
+// 	Vector2 ref_pos2d(ref_pos.x, ref_pos.z);
+// 	float min_dist_sq = FLOAT_MAX;
+// 	for (int i = 0; i < 3; i++) {
+// 		for (int j = 0; j < 3; j++) {
+// 			Vector2 candidate(pos.x + dx[i], pos.z + dz[j]);
+// 			float dist_sq = (candidate - ref_pos2d).length_squared();
+// 			if (dist_sq < min_dist_sq) {
+// 				min_dist_sq = dist_sq;
+// 				pos.x = candidate.x;
+// 				pos.z = candidate.y;
+// 			}
+// 		}
+// 	}
+// 	*p_pos = pos;
+// 	return min_dist_sq;
+// }
+
+Vector3 torus_closest_mirror(Vector3 pos, Vector3 ref_pos, float width, float height) {
+    float dx = ref_pos.x - pos.x;
+    if (dx > width * 0.5f) {
+        pos.x += width;
+    } else if (dx < -width * 0.5f) {
+        pos.x -= width;
+    }
+
+    float dz = ref_pos.z - pos.z;
+    if (dz > height * 0.5f) {
+        pos.z += height;
+    } else if (dz < -height * 0.5f) {
+        pos.z -= height;
+    }
+    return pos;
 }
 
 float AABB::find_max_separation(const AABB &other, Vector3 *p_reference_normal) const {
