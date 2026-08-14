@@ -688,6 +688,37 @@ static void setup_Space(py_GlobalRef mod) {
 		});
 		return true;
 	});
+
+	py_bindmethod(t, "filter_chunk_bodies", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(5);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_vec2i);
+		PY_CHECK_ARG_TYPE(2, tp_int);
+		PY_CHECK_ARG_TYPE(3, tp_int);
+		Vector2i base_chunk_pos = gd_tovec2i(&argv[1]);
+		uint32_t layer_mask = (uint32_t)py_toint(&argv[2]);
+		int radius = py_toint(&argv[3]);
+		py_Ref callback = &argv[4];
+		for (int i = -radius; i <= radius; i++) {
+			for (int j = -radius; j <= radius; j++) {
+				Vector2i chunk_pos = base_chunk_pos + Vector2i(i, j);
+				BodyID p = self->chunks[self->chunker.torus_2d_to_1d(chunk_pos)];
+				while (p) {
+					Body *candidate = self->get_body(p);
+					if (layer_mask & (1U << candidate->layer)) {
+						py_push(callback);
+						py_pushnil();
+						py_newtrivial(py_pushtmp(), get_BodyID_type(), (void *)&p, sizeof(BodyID));
+						if (!py_vectorcall(1, 0)) {
+							return false;
+						}
+					}
+					p = candidate->next;
+				}
+			}
+		}
+		return true;
+	});
 }
 
 static void setup_BroadPhaseFlags(py_GlobalRef mod) {

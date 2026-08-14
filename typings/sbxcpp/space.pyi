@@ -1,4 +1,4 @@
-from typing import Self, Literal, Protocol, overload
+from typing import Self, Literal, Protocol, overload, Callable
 from vmath import vec3, vec3i, vec2i
 from godot import Variant
 
@@ -131,3 +131,4 @@ class Space:
     def from_var(v: Variant, callbacks: CollisionCallbacks) -> Space: ...
 
     def broad_phase(self, vmin: vec3, vmax: vec3, layer_mask: int, flags: int, out: list | None = None) -> list[BodyID | vec3i]: ...
+    def filter_chunk_bodies(self, base_chunk_pos: vec2i, radius: int, layer_mask: int, callback: Callable[[BodyID], None]): ...
