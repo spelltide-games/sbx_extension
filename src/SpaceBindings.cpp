@@ -484,7 +484,7 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
-	py_bindmethod(t, "closest_mirror", [](int argc, py_Ref argv) {
+	py_bindmethod(t, "closest_mirror_point", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(3);
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, tp_vec3);
@@ -496,7 +496,7 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
-	py_bindmethod(t, "substract", [](int argc, py_Ref argv) {
+	py_bindmethod(t, "diff_point", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(3);
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		if (py_istype(py_arg(1), tp_vec3)) {
@@ -512,7 +512,7 @@ static void setup_Space(py_GlobalRef mod) {
 			Vector2i rel = torus_substract(lhs, rhs, self->width(), self->height());
 			gd_newvec2i(py_retval(), rel);
 		} else {
-			return TypeError("substract() argument must be vec3 or vec2i");
+			return TypeError("diff_point() argument must be vec3 or vec2i");
 		}
 		return true;
 	});
@@ -536,7 +536,19 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
-	py_bindmethod(t, "wrap_chunk_pos", [](int argc, py_Ref argv) {
+	py_bindmethod(t, "diff_chunk", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(3);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_vec2i);
+		PY_CHECK_ARG_TYPE(2, tp_vec2i);
+		Vector2i lhs = gd_tovec2i(&argv[1]);
+		Vector2i rhs = gd_tovec2i(&argv[2]);
+		Vector2i rel = torus_substract(lhs, rhs, self->chunker.n_chunks_x, self->chunker.n_chunks_y);
+		gd_newvec2i(py_retval(), rel);
+		return true;
+	});
+
+	py_bindmethod(t, "wrap_chunk", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(2);
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, tp_vec2i);
