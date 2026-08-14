@@ -696,8 +696,8 @@ static void setup_Space(py_GlobalRef mod) {
 		PY_CHECK_ARG_TYPE(2, tp_int);
 		PY_CHECK_ARG_TYPE(3, tp_int);
 		Vector2i base_chunk_pos = gd_tovec2i(&argv[1]);
-		uint32_t layer_mask = (uint32_t)py_toint(&argv[2]);
-		int radius = py_toint(&argv[3]);
+		int radius = py_toint(&argv[2]);
+		uint32_t layer_mask = (uint32_t)py_toint(&argv[3]);
 
 		py_OutRef out;
 		if (py_isnone(&argv[4])) {
