@@ -536,6 +536,17 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
+	py_bindmethod(t, "wrap_chunk_pos", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(2);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_vec2i);
+		Vector2i pos = gd_tovec2i(&argv[1]);
+		pos.x = posmod(pos.x, self->chunker.n_chunks_x);
+		pos.y = posmod(pos.y, self->chunker.n_chunks_y);
+		gd_newvec2i(py_retval(), pos);
+		return true;
+	});
+
 	// body properties
 #define BIND_BODY_GETTER(__name, __getter, __init)                    \
 	py_bindmethod(t, "body_get_" #__name, [](int argc, py_Ref argv) { \
