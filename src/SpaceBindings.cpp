@@ -698,7 +698,18 @@ static void setup_Space(py_GlobalRef mod) {
 		Vector2i base_chunk_pos = gd_tovec2i(&argv[1]);
 		uint32_t layer_mask = (uint32_t)py_toint(&argv[2]);
 		int radius = py_toint(&argv[3]);
-		py_Ref callback = &argv[4];
+
+		py_OutRef out;
+		if (py_isnone(&argv[4])) {
+			py_newlist(py_retval());
+			out = py_retval();
+		} else {
+			PY_CHECK_ARG_TYPE(4, tp_list);
+			out = &argv[4];
+			py_list_clear(out);
+			py_assign(py_retval(), out);
+		}
+
 		for (int i = -radius; i <= radius; i++) {
 			for (int j = -radius; j <= radius; j++) {
 				Vector2i chunk_pos = base_chunk_pos + Vector2i(i, j);
@@ -706,12 +717,8 @@ static void setup_Space(py_GlobalRef mod) {
 				while (p) {
 					Body *candidate = self->get_body(p);
 					if (layer_mask & (1U << candidate->layer)) {
-						py_push(callback);
-						py_pushnil();
-						py_newtrivial(py_pushtmp(), get_BodyID_type(), (void *)&p, sizeof(BodyID));
-						if (!py_vectorcall(1, 0)) {
-							return false;
-						}
+						py_ItemRef item = py_list_emplace(out);
+						py_newtrivial(item, get_BodyID_type(), (void *)&p, sizeof(BodyID));
 					}
 					p = candidate->next;
 				}
