@@ -159,28 +159,6 @@ void setup_lockstep_module(const char *name) {
 		LockstepGoNetwork *self = (LockstepGoNetwork *)py_touserdata(py_arg(0));
 		PY_CHECK_ARGC(1);
 
-		// poll ws
-		self->ws_peer->poll();
-		int state = self->ws_peer->get_ready_state();
-		switch (state) {
-			case WebSocketPeer::STATE_OPEN:
-				if (!self->ws_opened) {
-					self->ws_opened = true;
-				}
-				while (self->ws_peer->get_available_packet_count() > 0) {
-					PackedByteArray packet = self->ws_peer->get_packet();
-					if (!self->call_data(self->on_ws_data, (void *)packet.ptr(), packet.size())) {
-						return false;
-					}
-				}
-				break;
-			case WebSocketPeer::STATE_CLOSED:
-				if (self->ws_opened && !self->ws_closed) {
-					self->ws_closed = true;
-				}
-				break;
-		}
-
 		// poll kcp
 		if (self->ikcp) {
 			// update
@@ -215,6 +193,28 @@ void setup_lockstep_module(const char *name) {
 					}
 				}
 			}
+		}
+
+		// poll ws
+		self->ws_peer->poll();
+		int state = self->ws_peer->get_ready_state();
+		switch (state) {
+			case WebSocketPeer::STATE_OPEN:
+				if (!self->ws_opened) {
+					self->ws_opened = true;
+				}
+				while (self->ws_peer->get_available_packet_count() > 0) {
+					PackedByteArray packet = self->ws_peer->get_packet();
+					if (!self->call_data(self->on_ws_data, (void *)packet.ptr(), packet.size())) {
+						return false;
+					}
+				}
+				break;
+			case WebSocketPeer::STATE_CLOSED:
+				if (self->ws_opened && !self->ws_closed) {
+					self->ws_closed = true;
+				}
+				break;
 		}
 		py_newnone(py_retval());
 		return true;
