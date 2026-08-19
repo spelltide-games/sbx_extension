@@ -161,5 +161,6 @@ Vector2i torus_substract(Vector2i lhs, Vector2i rhs, int width, int height);
 void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b);
 bool torus_aabb_intersects(AABB a, AABB b, int width, int height);
 Vector3 torus_closest_mirror(Vector3 pos, Vector3 ref_pos, float width, float height);
+float safe_normalized(Vector3 *p_vec);
 
 } // namespace sbx

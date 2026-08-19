@@ -99,20 +99,20 @@ bool torus_aabb_intersects(AABB a, AABB b, int width, int height) {
 // }
 
 Vector3 torus_closest_mirror(Vector3 pos, Vector3 ref_pos, float width, float height) {
-    float dx = ref_pos.x - pos.x;
-    if (dx > width * 0.5f) {
-        pos.x += width;
-    } else if (dx < -width * 0.5f) {
-        pos.x -= width;
-    }
+	float dx = ref_pos.x - pos.x;
+	if (dx > width * 0.5f) {
+		pos.x += width;
+	} else if (dx < -width * 0.5f) {
+		pos.x -= width;
+	}
 
-    float dz = ref_pos.z - pos.z;
-    if (dz > height * 0.5f) {
-        pos.z += height;
-    } else if (dz < -height * 0.5f) {
-        pos.z -= height;
-    }
-    return pos;
+	float dz = ref_pos.z - pos.z;
+	if (dz > height * 0.5f) {
+		pos.z += height;
+	} else if (dz < -height * 0.5f) {
+		pos.z -= height;
+	}
+	return pos;
 }
 
 float AABB::find_max_separation(const AABB &other, Vector3 *p_reference_normal) const {
@@ -143,10 +143,20 @@ float AABB::find_max_separation(const AABB &other, Vector3 *p_reference_normal) 
 				normal[axis] = max_sep[axis] * sign[axis];
 			}
 		}
-		float length = dmath_sqrt(normal.length_squared());
-		normal /= length;
+		float length = safe_normalized(&normal);
 		*p_reference_normal = normal;
 		return length;
+	}
+}
+
+float safe_normalized(Vector3 *p_vec) {
+	float length = dmath_sqrt(p_vec->length_squared());
+	if (length > FLOAT_EPS) {
+		*p_vec /= length;
+		return length;
+	} else {
+		*p_vec = Vector3(1, 0, 0);
+		return 0.0f;
 	}
 }
 

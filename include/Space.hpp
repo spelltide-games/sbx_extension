@@ -141,6 +141,7 @@ struct CollisionPair {
 
 struct Space;
 using BroadPhaseCallback = void (*)(Space *space, BodyID candidate, Vector3i xzl, void *ctx);
+using ShapeCastCallback = void (*)(Space *space, BodyID candidate, Vector3i xzl, void *ctx);
 
 struct CollisionEvent {
 	enum class Type : int {
@@ -275,7 +276,7 @@ struct Space {
 	void broad_phase(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
 	void step(float delta, CollisionEventHandler handler, void *handler_ctx);
 
-	void cylinder_cast(Vector3 center, float radius, float height_, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
+	void cylinder_cast(Vector3 center, float radius, float height_, float start_angle, float sweep_angle, uint32_t layer_mask, uint32_t flags, void *ctx, ShapeCastCallback callback);
 	void ray_cast(Vector3 from, Vector3 to, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
 };
 

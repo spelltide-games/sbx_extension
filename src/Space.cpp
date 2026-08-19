@@ -276,7 +276,7 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 
 		// a: incident body
 		// b: reference body
-		Vector3 n = info.normal;
+		Vector3 n = info.normal;	// a <- b
 
 		// contact separation
 		Vector3 v_bias(0, 0, 0);
@@ -344,12 +344,14 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 	}
 }
 
-void Space::cylinder_cast(Vector3 center, float radius, float height_, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
+void Space::cylinder_cast(Vector3 center, float radius, float height_, float start_angle, float sweep_angle, uint32_t layer_mask, uint32_t flags, void *ctx, ShapeCastCallback callback) {
+	const float PI = 3.14159265358979323846;
+
 	struct Context {
 		AABB aabb;
 		float radius;
 		void *user_ctx;
-		BroadPhaseCallback user_callback;
+		ShapeCastCallback user_callback;
 	};
 
 	// wrap point for safety
@@ -373,18 +375,21 @@ void Space::cylinder_cast(Vector3 center, float radius, float height_, uint32_t 
 		AABB cyl_aabb = cyl_ctx->aabb;
 		torus_normalize_two_aabb(space->width(), space->height(), &cyl_aabb, &core);
 
-		// check vertical overlap precisely
-		float body_min_y = core.vmin.y - body->cube.radius;
-		float body_max_y = core.vmax.y + body->cube.radius;
-		if (body_max_y < cyl_aabb.vmin.y || body_min_y > cyl_aabb.vmax.y) {
-			return;
-		}
-
+		// radial gap from the cylinder's flat-capped disk to the core box (0 if the axis is inside the box's xz footprint)
 		float closest_x = Math::clamp(0.0f, core.vmin.x, core.vmax.x);
 		float closest_z = Math::clamp(0.0f, core.vmin.z, core.vmax.z);
-		float total_radius = cyl_ctx->radius + body->cube.radius;
+		float h_gap = dmath_sqrt(closest_x * closest_x + closest_z * closest_z);
+		float dh = Math::max(h_gap - cyl_ctx->radius, 0.0f);
 
-		if (closest_x * closest_x + closest_z * closest_z <= total_radius * total_radius) {
+		// vertical gap between the cylinder's height range and the core box (0 if they overlap)
+		float dy_top = core.vmin.y - cyl_aabb.vmax.y; // > 0 if core is above the cylinder's top cap
+		float dy_bot = cyl_aabb.vmin.y - core.vmax.y; // > 0 if core is below the cylinder's bottom cap
+		float dy = Math::max(Math::max(dy_top, dy_bot), 0.0f);
+
+		// dh/dy combine as a true 3D distance; only body->cube.radius needs to be subtracted here since
+		// the cylinder's own radius was already folded into dh along the radial direction
+		float body_radius = body->cube.radius;
+		if (dh * dh + dy * dy <= body_radius * body_radius) {
 			cyl_ctx->user_callback(space, candidate, xzl, cyl_ctx->user_ctx);
 		}
 	});
