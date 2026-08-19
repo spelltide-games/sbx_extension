@@ -7,6 +7,9 @@ double dmath_sqrt(double);
 
 namespace sbx {
 
+const float PI_F = 3.14159265358979323846f;
+const float TWO_PI_F = 2.0f * PI_F;
+
 void Space::broad_phase(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
 	aabb.grow(SPECULATIVE_DISTANCE);
 
@@ -345,11 +348,11 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 }
 
 void Space::cylinder_cast(Vector3 center, float radius, float height_, float start_angle, float sweep_angle, uint32_t layer_mask, uint32_t flags, void *ctx, ShapeCastCallback callback) {
-	const float PI = 3.14159265358979323846;
-
 	struct Context {
 		AABB aabb;
 		float radius;
+		float start_angle;
+		float sweep_angle;
 		void *user_ctx;
 		ShapeCastCallback user_callback;
 	};
@@ -361,7 +364,13 @@ void Space::cylinder_cast(Vector3 center, float radius, float height_, float sta
 			Vector3(center.x - radius, center.y - height_ * 0.5f, center.z - radius),
 			Vector3(center.x + radius, center.y + height_ * 0.5f, center.z + radius));
 
-	Context cyl_ctx{ aabb, radius, ctx, callback };
+	// normalize so 0 <= start_angle < 2*PI and 0 <= sweep_angle <= 2*PI (>= 2*PI means the full cylinder)
+	// x is from left to right, z is from top to bottom
+	// positive sweep_angle means clockwise rotation from start_angle
+	start_angle = posmodf(start_angle, TWO_PI_F);
+	sweep_angle = Math::clamp(sweep_angle, 0.0f, TWO_PI_F);
+
+	Context cyl_ctx{ aabb, radius, start_angle, sweep_angle, ctx, callback };
 
 	broad_phase(aabb, layer_mask, flags, (void *)&cyl_ctx, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
 		Context *cyl_ctx = (Context *)ctx;
@@ -389,9 +398,16 @@ void Space::cylinder_cast(Vector3 center, float radius, float height_, float sta
 		// dh/dy combine as a true 3D distance; only body->cube.radius needs to be subtracted here since
 		// the cylinder's own radius was already folded into dh along the radial direction
 		float body_radius = body->cube.radius;
-		if (dh * dh + dy * dy <= body_radius * body_radius) {
-			cyl_ctx->user_callback(space, candidate, xzl, cyl_ctx->user_ctx);
+		if (dh * dh + dy * dy > body_radius * body_radius) {
+			return;
 		}
+
+		// angular sector test (skip when the cylinder covers the full circle)
+		if (cyl_ctx->sweep_angle < TWO_PI_F && (closest_x != 0.0f || closest_z != 0.0f)) {
+
+		}
+
+		cyl_ctx->user_callback(space, candidate, xzl, cyl_ctx->user_ctx);
 	});
 }
 
@@ -457,29 +473,27 @@ void Space::draw_body(PackedVector3Array *p_array, BodyID bid, Vector3i xzl) {
 
 		float r = Math::sqrt(Math::max<float>(0.0, radius * radius - dy * dy));
 
-		const float PI = 3.14159265358979323846;
-
 		// 第一象限 (+u, +v)
 		for (int j = 0; j <= corner_res; j++) {
-			float ang = float(j) / corner_res * (PI / 2.0);
+			float ang = float(j) / corner_res * (PI_F / 2.0);
 			points.append(make_vec3(curr_val, core.vmax[u] + r * Math::sin(ang), core.vmax[v] + r * Math::cos(ang)));
 		}
 
 		// 第二象限 (+u, -v)
 		for (int j = 0; j <= corner_res; j++) {
-			float ang = PI / 2.0 + float(j) / corner_res * (PI / 2.0);
+			float ang = PI_F / 2.0 + float(j) / corner_res * (PI_F / 2.0);
 			points.append(make_vec3(curr_val, core.vmax[u] + r * Math::sin(ang), core.vmin[v] + r * Math::cos(ang)));
 		}
 
 		// 第三象限 (-u, -v)
 		for (int j = 0; j <= corner_res; j++) {
-			float ang = PI + float(j) / corner_res * (PI / 2.0);
+			float ang = PI_F + float(j) / corner_res * (PI_F / 2.0);
 			points.append(make_vec3(curr_val, core.vmin[u] + r * Math::sin(ang), core.vmin[v] + r * Math::cos(ang)));
 		}
 
 		// 第四象限 (-u, +v)
 		for (int j = 0; j <= corner_res; j++) {
-			float ang = 3.0 * PI / 2.0 + float(j) / corner_res * (PI / 2.0);
+			float ang = 3.0 * PI_F / 2.0 + float(j) / corner_res * (PI_F / 2.0);
 			points.append(make_vec3(curr_val, core.vmin[u] + r * Math::sin(ang), core.vmax[v] + r * Math::cos(ang)));
 		}
 
