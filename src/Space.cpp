@@ -26,24 +26,24 @@ static void get_angular_span(Vector2 vmin, Vector2 vmax, float radius, float *p_
 		float cx = corners[i].x;
 		float cy = corners[i].y;
 		float dist = dmath_sqrt(cx * cx + cy * cy);
-		float ratio = Math::min(radius / dist, 1.0f);
-		float alpha = dmath_asin(ratio);
 		float theta = dmath_atan2(cy, cx);
-
-		float a1 = theta - alpha;
-		float a2 = theta + alpha;
-
-		for (float a : { a1, a2 }) {
-			a = posmodf(a, TWO_PI_F);
-			angles[num_angles++] = a;
+		if (radius < FLOAT_EPS) {
+			angles[num_angles++] = posmodf(theta, TWO_PI_F);
+		} else {
+			float ratio = Math::min(radius / dist, 1.0f);
+			float alpha = dmath_asin(ratio);
+			float a1 = theta - alpha;
+			float a2 = theta + alpha;
+			angles[num_angles++] = posmodf(a1, TWO_PI_F);
+			angles[num_angles++] = posmodf(a2, TWO_PI_F);
 		}
 	}
 
 	// 10, 350, 351 (350-10=340) => 350, 20
 	// 10, 20, 30 (10-30=-20=340) => 10, 20
-	std::stable_sort(angles, angles + 8);
-	for (int i = 0; i < 8; ++i) {
-		float next_angle = angles[(i + 1) % 8];
+	std::stable_sort(angles, angles + num_angles);
+	for (int i = 0; i < num_angles; ++i) {
+		float next_angle = angles[(i + 1) % num_angles];
 		float gap = next_angle - angles[i];
 		gap = posmodf(gap, TWO_PI_F);
 		if (gap > PI_F) {
