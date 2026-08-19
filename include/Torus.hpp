@@ -15,6 +15,8 @@ const float FLOAT_EPS = 0.001953125f; // 1/512
 const float LINEAR_SLOP = 0.015625f; // 1/64
 const float SPECULATIVE_DISTANCE = 4 * LINEAR_SLOP; // 1/16
 const float PENETRATION_CORRECTION_PERCENTAGE = 0.2f;
+const float PI_F = 3.14159265358979323846f;
+const float TWO_PI_F = 2.0f * PI_F;
 
 static inline int posmod(int x, int m) {
 	assert(m > 0);

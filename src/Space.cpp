@@ -1,14 +1,61 @@
 #include "Space.hpp"
+#include <algorithm>
 #include <cassert>
 
 extern "C" {
 double dmath_sqrt(double);
+double dmath_atan2(double, double);
+double dmath_asin(double);
 }
 
 namespace sbx {
 
-const float PI_F = 3.14159265358979323846f;
-const float TWO_PI_F = 2.0f * PI_F;
+static void get_angular_span(Vector2 vmin, Vector2 vmax, float radius, float *p_start_angle, float *p_sweep_angle) {
+	// h_gap > body_radius => the origin is outside the rounded rectangle
+	Vector2 corners[4] = {
+		{ vmin.x, vmin.y },
+		{ vmax.x, vmin.y },
+		{ vmin.x, vmax.y },
+		{ vmax.x, vmax.y }
+	};
+
+	float angles[8];
+	int num_angles = 0;
+
+	for (int i = 0; i < 4; ++i) {
+		float cx = corners[i].x;
+		float cy = corners[i].y;
+		float dist = dmath_sqrt(cx * cx + cy * cy);
+		float ratio = Math::min(radius / dist, 1.0f);
+		float alpha = dmath_asin(ratio);
+		float theta = dmath_atan2(cy, cx);
+
+		float a1 = theta - alpha;
+		float a2 = theta + alpha;
+
+		for (float a : { a1, a2 }) {
+			a = posmodf(a, TWO_PI_F);
+			angles[num_angles++] = a;
+		}
+	}
+
+	// 10, 350, 351 (350-10=340) => 350, 20
+	// 10, 20, 30 (10-30=-20=340) => 10, 20
+	std::stable_sort(angles, angles + 8);
+	for (int i = 0; i < 8; ++i) {
+		float next_angle = angles[(i + 1) % 8];
+		float gap = next_angle - angles[i];
+		gap = posmodf(gap, TWO_PI_F);
+		if (gap > PI_F) {
+			*p_start_angle = next_angle;
+			*p_sweep_angle = TWO_PI_F - gap;
+			return;
+		}
+	}
+
+	assert(false);
+	ERR_FAIL_MSG("cannot find a gap greater than PI, this should never happen");
+}
 
 void Space::broad_phase(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
 	aabb.grow(SPECULATIVE_DISTANCE);
@@ -279,7 +326,7 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 
 		// a: incident body
 		// b: reference body
-		Vector3 n = info.normal;	// a <- b
+		Vector3 n = info.normal; // a <- b
 
 		// contact separation
 		Vector3 v_bias(0, 0, 0);
@@ -364,12 +411,8 @@ void Space::cylinder_cast(Vector3 center, float radius, float height_, float sta
 			Vector3(center.x - radius, center.y - height_ * 0.5f, center.z - radius),
 			Vector3(center.x + radius, center.y + height_ * 0.5f, center.z + radius));
 
-	// normalize so 0 <= start_angle < 2*PI and 0 <= sweep_angle <= 2*PI (>= 2*PI means the full cylinder)
-	// x is from left to right, z is from top to bottom
-	// positive sweep_angle means clockwise rotation from start_angle
 	start_angle = posmodf(start_angle, TWO_PI_F);
-	sweep_angle = Math::clamp(sweep_angle, 0.0f, TWO_PI_F);
-
+	sweep_angle = posmodf(sweep_angle, TWO_PI_F);
 	Context cyl_ctx{ aabb, radius, start_angle, sweep_angle, ctx, callback };
 
 	broad_phase(aabb, layer_mask, flags, (void *)&cyl_ctx, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
@@ -384,7 +427,6 @@ void Space::cylinder_cast(Vector3 center, float radius, float height_, float sta
 		AABB cyl_aabb = cyl_ctx->aabb;
 		torus_normalize_two_aabb(space->width(), space->height(), &cyl_aabb, &core);
 
-		// radial gap from the cylinder's flat-capped disk to the core box (0 if the axis is inside the box's xz footprint)
 		float closest_x = Math::clamp(0.0f, core.vmin.x, core.vmax.x);
 		float closest_z = Math::clamp(0.0f, core.vmin.z, core.vmax.z);
 		float h_gap = dmath_sqrt(closest_x * closest_x + closest_z * closest_z);
@@ -395,16 +437,27 @@ void Space::cylinder_cast(Vector3 center, float radius, float height_, float sta
 		float dy_bot = cyl_aabb.vmin.y - core.vmax.y; // > 0 if core is below the cylinder's bottom cap
 		float dy = Math::max(Math::max(dy_top, dy_bot), 0.0f);
 
-		// dh/dy combine as a true 3D distance; only body->cube.radius needs to be subtracted here since
-		// the cylinder's own radius was already folded into dh along the radial direction
+		// full cylinder test
 		float body_radius = body->cube.radius;
 		if (dh * dh + dy * dy > body_radius * body_radius) {
 			return;
 		}
 
-		// angular sector test (skip when the cylinder covers the full circle)
-		if (cyl_ctx->sweep_angle < TWO_PI_F && (closest_x != 0.0f || closest_z != 0.0f)) {
+		// angular sector test
+		if (cyl_ctx->sweep_angle + FLOAT_EPS < TWO_PI_F && h_gap > body_radius) {
+			float span_start_angle, span_sweep_angle;
+			get_angular_span(
+					Vector2(core.vmin.x, core.vmin.z),
+					Vector2(core.vmax.x, core.vmax.z),
+					body_radius, &span_start_angle, &span_sweep_angle);
 
+			if (span_sweep_angle + FLOAT_EPS < TWO_PI_F) {
+				float rel_start = posmodf(span_start_angle - cyl_ctx->start_angle, TWO_PI_F);
+				bool is_overlap = rel_start < cyl_ctx->sweep_angle || (rel_start + span_sweep_angle) > TWO_PI_F;
+				if (!is_overlap) {
+					return;
+				}
+			}
 		}
 
 		cyl_ctx->user_callback(space, candidate, xzl, cyl_ctx->user_ctx);
