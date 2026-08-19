@@ -694,17 +694,21 @@ static void setup_Space(py_GlobalRef mod) {
 		PY_CHECK_ARGC(9);
 		Space *self = (Space *)py_touserdata(&argv[0]);
 		PY_CHECK_ARG_TYPE(1, tp_vec3);
-		PY_CHECK_ARG_TYPE(2, tp_float);
-		PY_CHECK_ARG_TYPE(3, tp_float);
-		PY_CHECK_ARG_TYPE(4, tp_float);
-		PY_CHECK_ARG_TYPE(5, tp_float);
 		PY_CHECK_ARG_TYPE(6, tp_int);
 		PY_CHECK_ARG_TYPE(7, tp_int);
 		Vector3 center = gd_tovec3(&argv[1]);
-		float radius = py_tofloat(&argv[2]);
-		float height = py_tofloat(&argv[3]);
-		float start_angle = py_tofloat(&argv[4]);
-		float sweep_angle = py_tofloat(&argv[5]);
+		float radius;
+		float height;
+		float start_angle;
+		float sweep_angle;
+		if (!py_castfloat32(&argv[2], &radius))
+			return false;
+		if (!py_castfloat32(&argv[3], &height))
+			return false;
+		if (!py_castfloat32(&argv[4], &start_angle))
+			return false;
+		if (!py_castfloat32(&argv[5], &sweep_angle))
+			return false;
 		uint32_t layer_mask = (uint32_t)py_toint(&argv[6]);
 		uint32_t flags = (uint32_t)py_toint(&argv[7]);
 
