@@ -275,7 +275,7 @@ struct Space {
 	void broad_phase(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
 	void step(float delta, CollisionEventHandler handler, void *handler_ctx);
 
-	void cylinder_cast(Vector3 center, float radius, float height, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
+	void cylinder_cast(Vector3 center, float radius, float height_, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
 	void ray_cast(Vector3 from, Vector3 to, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
 };
 

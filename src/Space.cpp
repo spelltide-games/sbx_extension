@@ -344,7 +344,7 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 	}
 }
 
-void Space::cylinder_cast(Vector3 center, float radius, float height, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
+void Space::cylinder_cast(Vector3 center, float radius, float height_, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
 	struct Context {
 		AABB aabb;
 		float radius;
@@ -352,9 +352,12 @@ void Space::cylinder_cast(Vector3 center, float radius, float height, uint32_t l
 		BroadPhaseCallback user_callback;
 	};
 
+	// wrap point for safety
+	center.x = posmodf(center.x, width());
+	center.z = posmodf(center.z, height());
 	AABB aabb(
-			Vector3(center.x - radius, center.y - height * 0.5f, center.z - radius),
-			Vector3(center.x + radius, center.y + height * 0.5f, center.z + radius));
+			Vector3(center.x - radius, center.y - height_ * 0.5f, center.z - radius),
+			Vector3(center.x + radius, center.y + height_ * 0.5f, center.z + radius));
 
 	Context cyl_ctx{ aabb, radius, ctx, callback };
 
