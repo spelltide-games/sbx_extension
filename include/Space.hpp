@@ -272,14 +272,11 @@ struct Space {
 	void draw_body(PackedVector3Array *p_array, BodyID bid, Vector3i xzl);
 	void draw_chunk_bodies(Ref<ArrayMesh> mesh, bool include_tiles, int x, int y, int w, int h);
 
-	// void point_cast(Vector3 point);
-	// void ray_cast(Vector3 from, Vector3 to, float max_distance);
-	// void circle_cast(Vector3 center, float radius);
-	// void sphere_cast(Vector3 center, float radius);
-	// void cube_cast(Vector3 vmin, Vector3 vmax);
-
 	void broad_phase(AABB aabb, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
 	void step(float delta, CollisionEventHandler handler, void *handler_ctx);
+
+	void cylinder_cast(Vector3 center, float radius, float height, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
+	void ray_cast(Vector3 from, Vector3 to, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback);
 };
 
 } // namespace sbx

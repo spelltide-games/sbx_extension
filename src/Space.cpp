@@ -344,6 +344,49 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 	}
 }
 
+void Space::cylinder_cast(Vector3 center, float radius, float height, uint32_t layer_mask, uint32_t flags, void *ctx, BroadPhaseCallback callback) {
+	struct Context {
+		AABB aabb;
+		float radius;
+		void *user_ctx;
+		BroadPhaseCallback user_callback;
+	};
+
+	AABB aabb(
+			Vector3(center.x - radius, center.y - height * 0.5f, center.z - radius),
+			Vector3(center.x + radius, center.y + height * 0.5f, center.z + radius));
+
+	Context cyl_ctx{ aabb, radius, ctx, callback };
+
+	broad_phase(aabb, layer_mask, flags, (void *)&cyl_ctx, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
+		Context *cyl_ctx = (Context *)ctx;
+		Body *body = space->get_body(candidate);
+
+		AABB core = body->cube.core;
+		if (body->type == BodyType::TILE) {
+			core.move(Vector3(xzl.x + 0.5f, 0, xzl.y + 0.5f));
+		}
+
+		AABB cyl_aabb = cyl_ctx->aabb;
+		torus_normalize_two_aabb(space->width(), space->height(), &cyl_aabb, &core);
+
+		// check vertical overlap precisely
+		float body_min_y = core.vmin.y - body->cube.radius;
+		float body_max_y = core.vmax.y + body->cube.radius;
+		if (body_max_y < cyl_aabb.vmin.y || body_min_y > cyl_aabb.vmax.y) {
+			return;
+		}
+
+		float closest_x = Math::clamp(0.0f, core.vmin.x, core.vmax.x);
+		float closest_z = Math::clamp(0.0f, core.vmin.z, core.vmax.z);
+		float total_radius = cyl_ctx->radius + body->cube.radius;
+
+		if (closest_x * closest_x + closest_z * closest_z <= total_radius * total_radius) {
+			cyl_ctx->user_callback(space, candidate, xzl, cyl_ctx->user_ctx);
+		}
+	});
+}
+
 void Space::draw_body(PackedVector3Array *p_array, BodyID bid, Vector3i xzl) {
 	Body *body = get_body(bid);
 	AABB core = body->cube.core;
