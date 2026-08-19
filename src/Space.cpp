@@ -411,8 +411,13 @@ void Space::cylinder_cast(Vector3 center, float radius, float height_, float sta
 			Vector3(center.x - radius, center.y - height_ * 0.5f, center.z - radius),
 			Vector3(center.x + radius, center.y + height_ * 0.5f, center.z + radius));
 
-	start_angle = posmodf(start_angle, TWO_PI_F);
 	sweep_angle = Math::clamp(sweep_angle, -TWO_PI_F, TWO_PI_F);
+	if (sweep_angle < 0) {
+		start_angle += sweep_angle;
+		sweep_angle = -sweep_angle;
+	}
+	start_angle = posmodf(start_angle, TWO_PI_F);
+
 	Context cyl_ctx{ aabb, radius, start_angle, sweep_angle, ctx, callback };
 
 	broad_phase(aabb, layer_mask, flags, (void *)&cyl_ctx, [](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
