@@ -689,6 +689,48 @@ static void setup_Space(py_GlobalRef mod) {
 		return true;
 	});
 
+	// cylinder_cast(self, center: vec3, radius: float, height: float, start_angle: float, sweep_angle: float, layer_mask: int, flags: int, out: list | None) -> list[BodyID | vec3i]
+	py_bindmethod(t, "cylinder_cast", [](int argc, py_Ref argv) {
+		PY_CHECK_ARGC(9);
+		Space *self = (Space *)py_touserdata(&argv[0]);
+		PY_CHECK_ARG_TYPE(1, tp_vec3);
+		PY_CHECK_ARG_TYPE(2, tp_float);
+		PY_CHECK_ARG_TYPE(3, tp_float);
+		PY_CHECK_ARG_TYPE(4, tp_float);
+		PY_CHECK_ARG_TYPE(5, tp_float);
+		PY_CHECK_ARG_TYPE(6, tp_int);
+		PY_CHECK_ARG_TYPE(7, tp_int);
+		Vector3 center = gd_tovec3(&argv[1]);
+		float radius = py_tofloat(&argv[2]);
+		float height = py_tofloat(&argv[3]);
+		float start_angle = py_tofloat(&argv[4]);
+		float sweep_angle = py_tofloat(&argv[5]);
+		uint32_t layer_mask = (uint32_t)py_toint(&argv[6]);
+		uint32_t flags = (uint32_t)py_toint(&argv[7]);
+
+		py_OutRef out;
+		if (py_isnone(&argv[8])) {
+			py_newlist(py_retval());
+			out = py_retval();
+		} else {
+			PY_CHECK_ARG_TYPE(8, tp_list);
+			out = &argv[8];
+			py_list_clear(out);
+			py_assign(py_retval(), out);
+		}
+
+		self->cylinder_cast(center, radius, height, start_angle, sweep_angle, layer_mask, flags, (void *)out,
+				[](Space *space, BodyID candidate, Vector3i xzl, void *ctx) {
+					py_ItemRef item = py_list_emplace((py_Ref)ctx);
+					if (candidate.type == BodyType::TILE) {
+						py_newvec3i(item, c11_vec3i{ { xzl.x, xzl.y, xzl.z } });
+					} else {
+						py_newtrivial(item, get_BodyID_type(), (void *)&candidate, sizeof(BodyID));
+					}
+				});
+		return true;
+	});
+
 	py_bindmethod(t, "filter_chunk_bodies", [](int argc, py_Ref argv) {
 		PY_CHECK_ARGC(5);
 		Space *self = (Space *)py_touserdata(&argv[0]);
