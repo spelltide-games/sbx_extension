@@ -395,6 +395,10 @@ void Space::step(float delta, CollisionEventHandler handler, void *handler_ctx) 
 }
 
 void Space::cylinder_cast(Vector3 center, float radius, float height_, float start_angle, float sweep_angle, uint32_t layer_mask, uint32_t flags, void *ctx, ShapeCastCallback callback) {
+	if (sweep_angle < FLOAT_EPS) {
+		return;
+	}
+
 	struct Context {
 		AABB aabb;
 		float radius;
