@@ -59,6 +59,16 @@ Vector3 torus_substract(Vector3 lhs, Vector3 rhs, int width, int height) {
 	return rel;
 }
 
+Vector2 torus_substract(Vector2 lhs, Vector2 rhs, int width, int height) {
+	const float w = (float)width;
+	const float h = (float)height;
+
+	Vector2 rel = lhs - rhs;
+	rel.x = posmodf(rel.x + 0.5 * w, w) - 0.5 * w;
+	rel.y = posmodf(rel.y + 0.5 * h, h) - 0.5 * h;
+	return rel;
+}
+
 Vector2i torus_substract(Vector2i lhs, Vector2i rhs, int width, int height) {
 	Vector2i rel = lhs - rhs;
 	rel.x = posmod(rel.x + width / 2, width) - width / 2;

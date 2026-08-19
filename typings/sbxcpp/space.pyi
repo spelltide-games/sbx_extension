@@ -1,5 +1,5 @@
-from typing import Self, Literal, Protocol, overload, Callable
-from vmath import vec3, vec3i, vec2i
+from typing import Self, Literal, Protocol, overload
+from vmath import vec3, vec2, vec3i, vec2i
 from godot import Variant
 
 TileID = int
@@ -78,6 +78,8 @@ class Space:
 
     @overload
     def diff_point(self, lhs: vec3, rhs: vec3) -> vec3: ...
+    @overload
+    def diff_point(self, lhs: vec2, rhs: vec2) -> vec2: ...
     @overload
     def diff_point(self, lhs: vec2i, rhs: vec2i) -> vec2i: ...
 

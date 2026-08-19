@@ -25,6 +25,10 @@ static void gd_newvec3(py_Ref r, Vector3 v) {
 	py_newvec3(r, c11_vec3{ { v.x, v.y, v.z } });
 }
 
+static void gd_newvec2(py_Ref r, Vector2 v) {
+	py_newvec2(r, c11_vec2{ { v.x, v.y } });
+}
+
 static void gd_newvec2i(py_Ref r, Vector2i v) {
 	py_newvec2i(r, c11_vec2i{ { v.x, v.y } });
 }
@@ -32,6 +36,11 @@ static void gd_newvec2i(py_Ref r, Vector2i v) {
 static Vector3 gd_tovec3(py_Ref r) {
 	c11_vec3 v = py_tovec3(r);
 	return Vector3(v.x, v.y, v.z);
+}
+
+static Vector2 gd_tovec2(py_Ref r) {
+	c11_vec2 v = py_tovec2(r);
+	return Vector2(v.x, v.y);
 }
 
 static Vector2i gd_tovec2i(py_Ref r) {
@@ -505,6 +514,12 @@ static void setup_Space(py_GlobalRef mod) {
 			Vector3 rhs = gd_tovec3(&argv[2]);
 			Vector3 rel = torus_substract(lhs, rhs, self->width(), self->height());
 			gd_newvec3(py_retval(), rel);
+		} else if (py_istype(py_arg(1), tp_vec2)) {
+			PY_CHECK_ARG_TYPE(2, tp_vec2);
+			Vector2 lhs = gd_tovec2(&argv[1]);
+			Vector2 rhs = gd_tovec2(&argv[2]);
+			Vector2 rel = torus_substract(lhs, rhs, self->width(), self->height());
+			gd_newvec2(py_retval(), rel);
 		} else if (py_istype(py_arg(1), tp_vec2i)) {
 			PY_CHECK_ARG_TYPE(2, tp_vec2i);
 			Vector2i lhs = gd_tovec2i(&argv[1]);
@@ -512,7 +527,7 @@ static void setup_Space(py_GlobalRef mod) {
 			Vector2i rel = torus_substract(lhs, rhs, self->width(), self->height());
 			gd_newvec2i(py_retval(), rel);
 		} else {
-			return TypeError("diff_point() argument must be vec3 or vec2i");
+			return TypeError("diff_point() argument must be vec3, vec2 or vec2i");
 		}
 		return true;
 	});

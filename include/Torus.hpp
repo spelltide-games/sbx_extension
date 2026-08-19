@@ -159,6 +159,7 @@ struct Chunker {
 
 int torus_iter_chunks_1d(int size, int chunk_size, float dmin, float dmax, int *out, int out_size);
 Vector3 torus_substract(Vector3 lhs, Vector3 rhs, int width, int height);
+Vector2 torus_substract(Vector2 lhs, Vector2 rhs, int width, int height);
 Vector2i torus_substract(Vector2i lhs, Vector2i rhs, int width, int height);
 void torus_normalize_two_aabb(int width, int height, AABB *p_aabb_a, AABB *p_aabb_b);
 bool torus_aabb_intersects(AABB a, AABB b, int width, int height);
